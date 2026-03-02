@@ -1,11 +1,14 @@
 import pandas as pd
+from pathlib import Path
 
 
 class DataTable:
     
     #Builder Method
     def __init__(self,route):
-        self.route = route
+        # Path of the Excel file containing the data
+        base_path = Path(__file__).resolve().parent.parent.parent
+        self.route = base_path / "Data" / "ExcelFiles" / "MatrizTipologias.xlsx"
         self.df = None
         
         #Se deben agregar las columnas requeridas para el programa
@@ -13,11 +16,19 @@ class DataTable:
         requiredColumns = [
             "CodDANE_txt",
             "Departamento",
-            "Municipio"
+            "Municipio",
+            "Tipología_2026_CortesArcMap",
+            "CodDANE_dpto"
         ]
         
-        df = pd.read_excel(self.route, sheet_name="Municipios")
-        print(df.columns.tolist())
+        df = pd.read_excel(self.route, 
+                           sheet_name="Municipios",
+                           header=1,
+                           nrows=1104,
+                           dtype={"CodDANE_txt": str, 
+                                  "CodDANE_dpto": str}
+                           )
+
         
         # Verify that all required columns are present
         missing = [c for c in requiredColumns if c not in df.columns]

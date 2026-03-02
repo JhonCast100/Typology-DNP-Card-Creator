@@ -48,7 +48,7 @@ def run():
 
     # Button to generate cards
     def generate():
-        print("Generar fichas...")  # luego aquí pondrás la lógica real
+        print("Generar fichas...")  # luego aquí pondre la lógica real
 
     generate_button = tk.Button(
         container,
