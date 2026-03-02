@@ -11,7 +11,7 @@ def main():
     
     #Create an instance of the DataPdfController with the imported data
     controller = DataPdfController(df)
-    controller.dataToPdf("Casanare")  
+    controller.dataToPdf("META")  
      
     #Call to the main view of the program
     run() 

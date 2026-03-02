@@ -9,98 +9,45 @@ from reportlab.lib.colors import HexColor
 import os
 
 # Colores exactos del DNP
-DNP_BLUE = HexColor('#003366')  # Azul oscuro del DNP
-DNP_LIGHT_BLUE = HexColor('#e6f0ff')  # Azul muy claro para fondos
-DNP_GREY = HexColor('#808080')  # Gris para textos secundarios
-TABLE_HEADER_BLUE = HexColor('#4a6fa5')  # Azul para encabezados de tabla
-
-class NumberedCanvas(canvas.Canvas):
-    def __init__(self, *args, **kwargs):
-        canvas.Canvas.__init__(self, *args, **kwargs)
-        self._page_number = 0
-        self._total_pages = None
-
-    def showPage(self):
-        self._page_number += 1
-        canvas.Canvas.showPage(self)
-
-    def save(self):
-        self._total_pages = self._page_number
-        self._page_number = 0
-        canvas.Canvas.save(self)
-
-    def draw_header_footer(self):
-        page_num = self._page_number
-        total_pages = self._total_pages or 1
-        
-        # Header with logo (top left)
-        try:
-            logo_path = "dnp_logo.png"
-            if os.path.exists(logo_path):
-                self.drawImage(logo_path, 40, 740, width=120, height=35, preserveAspectRatio=True, mask='auto')
-        except:
-            pass
-        
-        # Header line (blue)
-        self.setStrokeColor(DNP_BLUE)
-        self.setLineWidth(2)
-        self.line(40, 730, 570, 730)
-        
-        # Footer line (blue)
-        self.setStrokeColor(DNP_BLUE)
-        self.setLineWidth(1)
-        self.line(40, 60, 570, 60)
-        
-        # Footer text - exactly as in original
-        self.setFont("Helvetica", 7)
-        self.setFillColor(DNP_GREY)
-        
-        # First line of footer
-        self.drawString(40, 45, "Dirección: Calle 26 # 13 – 19 Bogotá, D.C., Colombia")
-        
-        # Second line with two parts
-        self.drawString(40, 35, "Conmutador: 601 3815000")
-        self.drawString(180, 35, "Línea gratuita: PBX 381 5000")
-        
-        # Page number (right side)
-        self.setFont("Helvetica", 7)
-        self.setFillColor(DNP_GREY)
-        self.drawRightString(570, 35, f"Página {page_num} de {total_pages}")
-
-    def drawPage(self):
-        self.draw_header_footer()
-        canvas.Canvas.drawPage(self)
-
+DNP_BLUE = HexColor('#003366') 
+DNP_LIGHT_BLUE = HexColor('#e6f0ff')  
+DNP_GREY = HexColor('#808080')  
+TABLE_HEADER_BLUE = HexColor('#4a6fa5')  
 
 class PdfGenerator:
     def __init__(self, filename):
         self.filename = filename
         self.styles = getSampleStyleSheet()
         self._setup_styles()
+        
+        # Rutas corregidas
+        self.base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.logo_path = os.path.join(self.base_path, 'src', 'Views', 'Imgs', 'DNPLogo.png')
+        self.map_path = os.path.join(self.base_path, 'Data', 'Maps', 'Casanare_1.jpg')
     
     def _setup_styles(self):
         """Configure custom styles exactly like the original PDF"""
         
-        # Main title - centered, bold
+        # Main title - centered, bold (más compacto)
         self.styles.add(ParagraphStyle(
             name='MainTitle',
             parent=self.styles['Heading1'],
             fontSize=14,
             alignment=TA_CENTER,
-            spaceAfter=8,
-            leading=18,
+            spaceAfter=4,
+            leading=16,
             textColor=colors.black,
             fontName='Helvetica-Bold'
         ))
         
-        # Department title - centered, bold, blue
+        # Department title - centered, bold, blue (más compacto)
         self.styles.add(ParagraphStyle(
             name='DeptTitle',
             parent=self.styles['Heading1'],
             fontSize=16,
             alignment=TA_CENTER,
-            spaceAfter=15,
-            leading=20,
+            spaceAfter=8,
+            leading=18,
             textColor=DNP_BLUE,
             fontName='Helvetica-Bold'
         ))
@@ -111,7 +58,7 @@ class PdfGenerator:
             parent=self.styles['Heading2'],
             fontSize=12,
             alignment=TA_LEFT,
-            spaceAfter=8,
+            spaceAfter=6,
             leading=14,
             textColor=DNP_BLUE,
             fontName='Helvetica-Bold',
@@ -124,7 +71,7 @@ class PdfGenerator:
             parent=self.styles['Heading2'],
             fontSize=11,
             alignment=TA_CENTER,
-            spaceAfter=10,
+            spaceAfter=6,
             leading=13,
             textColor=colors.black,
             fontName='Helvetica-Bold'
@@ -136,7 +83,7 @@ class PdfGenerator:
             parent=self.styles['Normal'],
             fontSize=9,
             alignment=TA_JUSTIFY,
-            spaceAfter=6,
+            spaceAfter=4,
             leading=11,
             textColor=colors.black,
             fontName='Helvetica'
@@ -148,12 +95,24 @@ class PdfGenerator:
             parent=self.styles['Normal'],
             fontSize=9,
             alignment=TA_LEFT,
-            spaceAfter=4,
+            spaceAfter=2,
             leading=12,
             textColor=colors.black,
             fontName='Helvetica',
             leftIndent=10,
             bulletIndent=5
+        ))
+        
+        # Table title - bold, centered (cambiado a centrado)
+        self.styles.add(ParagraphStyle(
+            name='TableTitle',
+            parent=self.styles['Normal'],
+            fontSize=9,
+            alignment=TA_CENTER,  # Cambiado a centrado
+            spaceAfter=2,
+            leading=11,
+            textColor=colors.black,
+            fontName='Helvetica-Bold'
         ))
         
         # Table header style
@@ -189,14 +148,15 @@ class PdfGenerator:
             fontName='Helvetica'
         ))
         
-        # Source text - italic
+        # Source text - italic, centrado debajo de la tabla
         self.styles.add(ParagraphStyle(
             name='SourceText',
             parent=self.styles['Italic'],
             fontSize=8,
-            alignment=TA_LEFT,
+            alignment=TA_CENTER,
             textColor=DNP_GREY,
             leading=10,
+            spaceAfter=2,
             fontName='Helvetica-Oblique'
         ))
         
@@ -220,49 +180,50 @@ class PdfGenerator:
             pagesize=letter,
             rightMargin=50,
             leftMargin=50,
-            topMargin=80,
-            bottomMargin=80
+            topMargin=50,
+            bottomMargin=90  # Aumentado para dar más espacio al footer de 3 líneas
         )
         
         elements = []
         
         # ==================== PAGE 1 ====================
         
-        # Main title
-        title_text = """<font size=14><b>Tipologías de las Entidades Territoriales para el Reconocimiento de Capacidades. Resultados para la Vigencia 2026</b></font>"""
+        # Main title - más pegado
+        title_text = """<font size=14><b>Tipologías de las Entidades Territoriales para el Reconocimiento de Capacidades. Resultados para la Vigencia 2025</b></font>"""
         title = Paragraph(title_text, self.styles["MainTitle"])
         elements.append(title)
-        elements.append(Spacer(1, 0.3 * inch))
+        elements.append(Spacer(1, 0.1 * inch))
         
         # Department subtitle
         dept_text = f"""<font size=16><b><font color='#003366'>Departamento: {departmentName}</font></b></font>"""
         dept_title = Paragraph(dept_text, self.styles["DeptTitle"])
         elements.append(dept_title)
-        elements.append(Spacer(1, 0.5 * inch))
+        elements.append(Spacer(1, 0.15 * inch))
         
         # Map title
         map_title = Paragraph("<b>Mapa de tipologías municipales</b>", self.styles["SubTitle"])
         elements.append(map_title)
-        elements.append(Spacer(1, 0.2 * inch))
+        elements.append(Spacer(1, 0.1 * inch))
         
         # Map image
         try:
-            map_path = "mapa_casanare.jpg"
-            if os.path.exists(map_path):
-                mapa = Image(map_path, width=6*inch, height=7*inch)
+            if os.path.exists(self.map_path):
+                mapa = Image(self.map_path, width=6*inch, height=7*inch)
                 elements.append(mapa)
             else:
+                print(f"⚠️ Mapa no encontrado en: {self.map_path}")
                 elements.append(Paragraph("<i>Mapa de tipologías municipales</i>", self.styles["NormalText"]))
-        except:
+        except Exception as e:
+            print(f"Error al cargar el mapa: {e}")
             elements.append(Paragraph("<i>Mapa de tipologías municipales</i>", self.styles["NormalText"]))
         
         elements.append(PageBreak())
         
         # ==================== PAGE 2 ====================
         
-        # Municipal typologies
-        elements.append(Paragraph("Tipologías municipales 2026", self.styles["SectionTitle"]))
-        elements.append(Spacer(1, 0.1 * inch))
+        # Municipal typologies 2025
+        elements.append(Paragraph("Tipologías municipales 2025", self.styles["SectionTitle"]))
+        elements.append(Spacer(1, 0.05 * inch))
         
         # Typologies description with bullet points
         typologies_items = [
@@ -277,14 +238,14 @@ class PdfGenerator:
         
         for item in typologies_items:
             elements.append(Paragraph(item, self.styles["ListText"]))
-            elements.append(Spacer(1, 0.05 * inch))
+            elements.append(Spacer(1, 0.02 * inch))
         
-        elements.append(Spacer(1, 0.2 * inch))
-        
-        # Results table title
-        elements.append(Paragraph("Resultados de tipologías municipales y distritales - Departamento de Casanare", 
-                                  self.styles["NormalText"]))
         elements.append(Spacer(1, 0.1 * inch))
+        
+        # Results table title (centrado)
+        elements.append(Paragraph("Resultados de tipologías municipales y distritales - Departamento de Casanare", 
+                                  self.styles["TableTitle"]))
+        elements.append(Spacer(1, 0.05 * inch))
         
         # Typologies results table
         typology_table_data = [
@@ -308,15 +269,15 @@ class PdfGenerator:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('TOPPADDING', (0, 0), (-1, 0), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('TOPPADDING', (0, 0), (-1, 0), 6),
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
         ]))
         
         elements.append(typology_table)
-        elements.append(Spacer(1, 0.2 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia", self.styles["SourceText"]))
         elements.append(PageBreak())
         
@@ -324,7 +285,7 @@ class PdfGenerator:
         
         # Socioeconomic characteristics
         elements.append(Paragraph("Características socioeconómicas", self.styles["SectionTitle"]))
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         
         socioeconomic_text = """
         Para hacer un mayor énfasis en las brechas sociales y económicas de los municipios del departamento, 
@@ -335,7 +296,7 @@ class PdfGenerator:
         relación con las capacidades fiscales y administrativas de los municipios y su situación geográfica.
         """
         elements.append(Paragraph(socioeconomic_text, self.styles["NormalText"]))
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         
         socioeconomic_text2 = """
         Adicionalmente, se contrastan las Tipologías con la medición del desempeño municipal (MDM), haciendo 
@@ -343,12 +304,12 @@ class PdfGenerator:
         seguridad y convivencia.
         """
         elements.append(Paragraph(socioeconomic_text2, self.styles["NormalText"]))
-        elements.append(Spacer(1, 0.2 * inch))
+        elements.append(Spacer(1, 0.1 * inch))
         
         # Complementary variables table
-        elements.append(Paragraph("Tipologías vs. variables complementarias", self.styles["NormalText"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["NormalText"]))
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Paragraph("Tipologías vs. variables complementarias", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Spacer(1, 0.05 * inch))
         
         complementary_table_data = [
             ["Tipología", "IPM", "NBI", "IRCA", "IICA"],
@@ -376,14 +337,14 @@ class PdfGenerator:
         ]))
         
         elements.append(complementary_table)
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia con base en la información del DANE y DNP", self.styles["SourceText"]))
-        elements.append(Spacer(1, 0.2 * inch))
+        elements.append(Spacer(1, 0.1 * inch))
         
         # MDM table
-        elements.append(Paragraph("Tipologías vs. MDM", self.styles["NormalText"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["NormalText"]))
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Paragraph("Tipologías vs. MDM", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Spacer(1, 0.05 * inch))
         
         mdm_table_data = [
             ["Tipología", "MDM", "MDM\nResultados", "Educación", "Salud", "Servicios", "Seguridad y\nconvivencia"],
@@ -411,7 +372,7 @@ class PdfGenerator:
         ]))
         
         elements.append(mdm_table)
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
         elements.append(PageBreak())
         
@@ -419,15 +380,15 @@ class PdfGenerator:
         
         # Income section
         elements.append(Paragraph("Ingresos", self.styles["SectionTitle"]))
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         
         income_text = "A medida que se avanza en las tipologías los ingresos propios en promedio tienden a reducirse."
         elements.append(Paragraph(income_text, self.styles["NormalText"]))
-        elements.append(Spacer(1, 0.2 * inch))
-        
-        elements.append(Paragraph("Ingresos propios 2023. Cifras en miles de millones de pesos", self.styles["NormalText"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["NormalText"]))
         elements.append(Spacer(1, 0.1 * inch))
+        
+        elements.append(Paragraph("Ingresos propios 2023. Cifras en miles de millones de pesos", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Spacer(1, 0.05 * inch))
         
         income_table_data = [
             ["Tipología", "Ingresos tributarios"],
@@ -455,14 +416,14 @@ class PdfGenerator:
         ]))
         
         elements.append(income_table)
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia con base en las operaciones efectivas de caja calculadas por el DNP", 
                                   self.styles["SourceText"]))
-        elements.append(Spacer(1, 0.2 * inch))
+        elements.append(Spacer(1, 0.1 * inch))
         
         # Environmental areas section
         elements.append(Paragraph("Áreas ambientales y territorios étnicos", self.styles["SectionTitle"]))
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         
         environmental_text = """
         La variable porcentaje de "Áreas protegidas y ecosistemas estratégicos" resulta del cruce de información 
@@ -470,15 +431,15 @@ class PdfGenerator:
         Ambientales (REAA)<super>2</super>, en relación con el total del área municipal.
         """
         elements.append(Paragraph(environmental_text, self.styles["NormalText"]))
-        elements.append(Spacer(1, 0.2 * inch))
-        
-        # Protected areas table
-        elements.append(Paragraph("Tipologías vs. Rango de % de áreas protegidas y ecosistemas estratégicos", self.styles["NormalText"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["NormalText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
+        # Protected areas table
+        elements.append(Paragraph("Tipologías vs. Rango de % de áreas protegidas y ecosistemas estratégicos", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Spacer(1, 0.05 * inch))
+        
         protected_areas_data = [
-            ["Tipología", "", "% Área de protección ambiental y ecosistemas estratégicos", "", "", "Total"],
+            ["Tipología", "% Área de protección ambiental y ecosistemas estratégicos", "", "", "", "Total"],
             ["", "0% - 30%", "31% - 50%", "51% - 70%", "71% - 100%", ""],
             ["Bogotá", "0", "0", "0", "0", "0"],
             ["Ciudades grandes", "0", "0", "0", "0", "0"],
@@ -491,7 +452,7 @@ class PdfGenerator:
             ["Total", "18", "1", "0", "0", "19"]
         ]
         
-        protected_areas_table = Table(protected_areas_data, colWidths=[2.5*cm, 2.2*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm])
+        protected_areas_table = Table(protected_areas_data, colWidths=[2.5*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm])
         protected_areas_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 1), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 1), colors.white),
@@ -507,9 +468,9 @@ class PdfGenerator:
         ]))
         
         elements.append(protected_areas_table)
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia", self.styles["SourceText"]))
-        elements.append(Spacer(1, 0.2 * inch))
+        elements.append(Spacer(1, 0.1 * inch))
         
         elements.append(PageBreak())
         
@@ -523,15 +484,15 @@ class PdfGenerator:
         total del área municipal.
         """
         elements.append(Paragraph(ethnic_text, self.styles["NormalText"]))
-        elements.append(Spacer(1, 0.2 * inch))
-        
-        # Ethnic territories table
-        elements.append(Paragraph("Tipologías vs. Rango de % de área de territorios étnicos", self.styles["NormalText"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["NormalText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
+        # Ethnic territories table
+        elements.append(Paragraph("Tipologías vs. Rango de % de área de territorios étnicos", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Spacer(1, 0.05 * inch))
+        
         ethnic_territories_data = [
-            ["Tipología", "", "% Área de Territorios Étnicos", "", "", "", "Total"],
+            ["Tipología", "% Área de Territorios Étnicos", "", "", "", "", "Total"],
             ["", "0%", "0,01% - 30%", "31% - 50%", "51% - 70%", "71% - 100%", ""],
             ["Bogotá", "0", "0", "0", "0", "0", "0"],
             ["Ciudades grandes", "0", "0", "0", "0", "0", "0"],
@@ -544,7 +505,7 @@ class PdfGenerator:
             ["Total", "12", "7", "0", "0", "0", "19"]
         ]
         
-        ethnic_territories_table = Table(ethnic_territories_data, colWidths=[2.5*cm, 1.8*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm])
+        ethnic_territories_table = Table(ethnic_territories_data, colWidths=[2.5*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm])
         ethnic_territories_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 1), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 1), colors.white),
@@ -560,7 +521,7 @@ class PdfGenerator:
         ]))
         
         elements.append(ethnic_territories_table)
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia", self.styles["SourceText"]))
         elements.append(PageBreak())
         
@@ -568,13 +529,13 @@ class PdfGenerator:
         
         # Annex
         elements.append(Paragraph("Anexo", self.styles["SectionTitle"]))
-        elements.append(Spacer(1, 0.2 * inch))
+        elements.append(Spacer(1, 0.1 * inch))
         elements.append(Paragraph("Tipologías a nivel municipal- Departamento de Casanare", self.styles["SubTitle"]))
-        elements.append(Spacer(1, 0.2 * inch))
+        elements.append(Spacer(1, 0.1 * inch))
         
         # Municipality data for annex
         annex_data = [
-            ["Código DANE", "Departamento", "Municipio", "Tipología 2026"]
+            ["Código DANE", "Departamento", "Municipio", "Tipología 2025"]
         ]
         
         for municipality in data.get('municipalities', []):
@@ -598,7 +559,7 @@ class PdfGenerator:
         ]))
         
         elements.append(annex_table)
-        elements.append(Spacer(1, 0.3 * inch))
+        elements.append(Spacer(1, 0.2 * inch))
         
         # Footnotes
         footnote1 = """
@@ -607,7 +568,7 @@ class PdfGenerator:
         </font>
         """
         elements.append(Paragraph(footnote1, self.styles["Footnote"]))
-        elements.append(Spacer(1, 0.05 * inch))
+        elements.append(Spacer(1, 0.02 * inch))
         
         footnote2 = """
         <font size=6>
@@ -616,46 +577,56 @@ class PdfGenerator:
         """
         elements.append(Paragraph(footnote2, self.styles["Footnote"]))
         
-        # Build PDF with custom canvas for header and footer
+        # Build PDF with custom header and footer on each page
         doc.build(elements, onFirstPage=self._header_footer, onLaterPages=self._header_footer)
     
     def _header_footer(self, canvas, doc):
         """Add header and footer to each page"""
         canvas.saveState()
         
-        # Header with logo (top left)
-        try:
-            logo_path = "dnp_logo.png"
-            if os.path.exists(logo_path):
-                canvas.drawImage(logo_path, 40, 740, width=120, height=35, preserveAspectRatio=True, mask='auto')
-        except:
-            pass
+        # Calcular posición para el logo (centrado)
+        page_width = 612  # letter width in points (8.5 * 72)
+        logo_width = 120
+        logo_x = (page_width - logo_width) / 2
         
-        # Header line (blue)
+        # Header with logo (centrado) - BAJADO UN POCO PARA QUE NO SE CORTE
+        try:
+            if os.path.exists(self.logo_path):
+                # Bajé la posición Y de 760 a 750 para dar más espacio arriba
+                canvas.drawImage(self.logo_path, logo_x, 750, width=logo_width, height=35, preserveAspectRatio=True, mask='auto')
+            else:
+                print(f"⚠️ Logo no encontrado en: {self.logo_path}")
+        except Exception as e:
+            print(f"Error al cargar el logo: {e}")
+        
+        # Header line (blue) - centrada
+        line_width = 530
+        line_start = (page_width - line_width) / 2
         canvas.setStrokeColor(DNP_BLUE)
         canvas.setLineWidth(2)
-        canvas.line(40, 730, 570, 730)
+        canvas.line(line_start, 740, line_start + line_width, 740)  # Línea también bajada
         
-        # Footer line (blue)
+        # Footer line (blue) - centrada
         canvas.setStrokeColor(DNP_BLUE)
         canvas.setLineWidth(1)
-        canvas.line(40, 60, 570, 60)
+        canvas.line(line_start, 80, line_start + line_width, 80)  # Línea del footer más arriba para dar espacio
         
-        # Footer text - exactly as in original
+        # Footer text - ALINEADO A LA IZQUIERDA
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(DNP_GREY)
         
-        # First line of footer
-        canvas.drawString(40, 45, "Dirección: Calle 26 # 13 – 19 Bogotá, D.C., Colombia")
+        # Primera línea del footer - alineada a la izquierda en lugar de centrada
+        canvas.drawString(line_start, 65, "Dirección: Calle 26 # 13 – 19 Bogotá, D.C., Colombia")
         
-        # Second line with two parts
-        canvas.drawString(40, 35, "Conmutador: 601 3815000")
-        canvas.drawString(180, 35, "Línea gratuita: PBX 381 5000")
+        # Segunda línea: Conmutador - alineada a la izquierda
+        canvas.drawString(line_start, 55, "Conmutador: 601 3815000")
         
-        # Page number (right side)
-        canvas.setFont("Helvetica", 7)
-        canvas.setFillColor(DNP_GREY)
-        canvas.drawRightString(570, 35, f"Página {doc.page} de {len(doc.pages) + 1 if hasattr(doc, 'pages') else 1}")
+        # Tercera línea: Línea gratuita - alineada a la izquierda
+        canvas.drawString(line_start, 45, "Línea gratuita: PBX 381 5000")
+        
+        # Page number (right side) - alineado a la derecha pero dentro del margen
+        page_num = getattr(doc, 'page', 1)
+        canvas.drawRightString(line_start + line_width, 45, f"Página {page_num}")
         
         canvas.restoreState()
 
@@ -708,3 +679,6 @@ if __name__ == "__main__":
     generator = PdfGenerator("reporte_casanare_final.pdf")
     generator.generatePdf("Casanare", data_casanare)
     print("✅ PDF generado exitosamente: reporte_casanare_final.pdf")
+    print(f"\n📋 Rutas configuradas:")
+    print(f"  - Logo: {generator.logo_path}")
+    print(f"  - Mapa: {generator.map_path}")
