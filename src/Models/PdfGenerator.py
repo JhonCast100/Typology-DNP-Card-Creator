@@ -23,7 +23,7 @@ class PdfGenerator:
         # Rutas corregidas
         self.base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.logo_path = os.path.join(self.base_path, 'src', 'Views', 'Imgs', 'DNPLogo.png')
-        self.map_path = os.path.join(self.base_path, 'Data', 'Maps', 'Casanare_1.jpg')
+        self.map_path = os.path.join(self.base_path, 'Data', 'Maps', 'Antioquia_0.jpg')
     
     def _setup_styles(self):
         """Configure custom styles exactly like the original PDF"""
@@ -172,6 +172,21 @@ class PdfGenerator:
         ))
     
     def generatePdf(self, departmentName, data):
+        
+        # Total municipalities
+        total_municipalities = len(data)
+
+        # Count of municipalities by typology
+        typology_counts = data["Tipologia_2026R"].value_counts()
+
+        # Promedio ICPond por tipología
+        # Promedio del índice por tipología dentro del departamento
+        typology_means = (
+            data
+            .groupby("Tipologia_2026R")["ICPond_2026"]
+            .mean()
+        )
+        
         """
         Generates the PDF exactly matching the original document
         """
@@ -189,7 +204,7 @@ class PdfGenerator:
         # ==================== PAGE 1 ====================
         
         # Main title - más pegado
-        title_text = """<font size=14><b>Tipologías de las Entidades Territoriales para el Reconocimiento de Capacidades. Resultados para la Vigencia 2025</b></font>"""
+        title_text = """<font size=14><b>Tipologías de las Entidades Territoriales para el Reconocimiento de Capacidades. Resultados para la Vigencia 2026</b></font>"""
         title = Paragraph(title_text, self.styles["MainTitle"])
         elements.append(title)
         elements.append(Spacer(1, 0.1 * inch))
@@ -221,20 +236,36 @@ class PdfGenerator:
         
         # ==================== PAGE 2 ====================
         
-        # Municipal typologies 2025
-        elements.append(Paragraph("Tipologías municipales 2025", self.styles["SectionTitle"]))
+        # Municipal typologies 
+        elements.append(Paragraph("Tipologías municipales 2026", self.styles["SectionTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
         # Typologies description with bullet points
+        # Conteo por tipología
+        typology_counts = data["Tipologia_2026R"].value_counts()
+
+        # Lista municipios por tipología
+        def municipios_por_tipologia(t):
+            return ", ".join(
+                data.loc[data["Tipologia_2026R"] == t, "Municipio"]
+                .sort_values()
+                .tolist()
+            )
+
         typologies_items = [
-            f"• El departamento de <b>{departmentName}</b> está conformado por <b>{data['total_municipalities']}</b> municipios.",
-            "• Ningún municipio de este departamento pertenece a las Tipologías de Ciudades Grandes o Centros de Aglomeración - Sistema de Ciudades.",
-            "• En la <b>Tipología 1</b> no se encuentra ningún municipio de este departamento. Los municipios de esta tipología se caracterizan por tener en promedio los más altos niveles de capacidades fiscales y administrativas, y al mismo tiempo son los municipios mejores conectados y más densos.",
-            f"• En la <b>Tipología 2</b> se encuentra <b>{data['typology2']['quantity']}</b> municipio{'' if data['typology2']['quantity'] == 1 else 's'}, <b>{data['typology2']['municipalities']}</b>. Los municipios de esta tipología se caracterizan porque tienen niveles intermedios-altos de capacidad fiscal y administrativa, conectividad y densidad poblacional.",
-            f"• En la <b>Tipología 3</b> se encuentran <b>{data['typology3']['quantity']}</b> municipios. Los municipios de esta tipología se caracterizan por tener niveles intermedios de capacidad fiscal y administrativa, conectividad y densidad poblacional.",
-            f"• En la <b>Tipología 4</b> se encuentran <b>{data['typology4']['quantity']}</b> municipios. Los municipios de esta tipología se caracterizan por tener niveles intermedios-bajos de capacidad administrativa y fiscal conectividad y densidad poblacional.",
-            f"• En la <b>Tipología 5</b> se encuentran <b>{data['typology5']['quantity']}</b> municipios. Los municipios de esta tipología se caracterizan por tener bajos niveles de capacidad administrativa y fiscal, al mismo tiempo son los más desconectados y menos densos (mayor ruralidad)."
+            f"• El departamento de <b>{departmentName}</b> está conformado por <b>{total_municipalities}</b> municipios.",
         ]
+
+        for t in [1, 2, 3, 4, 5]:
+            cantidad = typology_counts.get(t, 0)
+
+            if cantidad == 0:
+                texto = f"• En la <b>Tipología {t}</b> no se encuentra ningún municipio."
+            else:
+                lista_mun = municipios_por_tipologia(t)
+                texto = f"• En la <b>Tipología {t}</b> se encuentran <b>{cantidad}</b> municipio{'' if cantidad == 1 else 's'}: <b>{lista_mun}</b>."
+
+            typologies_items.append(texto)
         
         for item in typologies_items:
             elements.append(Paragraph(item, self.styles["ListText"]))
@@ -243,23 +274,46 @@ class PdfGenerator:
         elements.append(Spacer(1, 0.1 * inch))
         
         # Results table title (centrado)
-        elements.append(Paragraph("Resultados de tipologías municipales y distritales - Departamento de Casanare", 
+        elements.append(Paragraph("Resultados de tipologías municipales y distritales - Departamento de {departmentName}".format(departmentName=departmentName), 
                                   self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
         # Typologies results table
+        # Promedios ICPond por tipología
+        # Promedio del índice por tipología dentro del departamento
+        typology_means = (
+            data
+            .groupby("Tipologia_2026R")["ICPond_2026"]
+            .mean()
+        )
+
         typology_table_data = [
-            ["Tipología", "Núm. municipios y distritos", "Índice de capacidades\nponderado (Promedio)"],
-            ["Bogotá", "0", "-"],
-            ["Ciudades grandes", "0", "-"],
-            ["SC- Centro aglomeración", "0", "-"],
-            ["1", "0", "-"],
-            ["2", str(data['typology2']['quantity']), "0,53"],
-            ["3", str(data['typology3']['quantity']), "0,43"],
-            ["4", str(data['typology4']['quantity']), "0,29"],
-            ["5", str(data['typology5']['quantity']), "0,10"],
-            ["Total", str(data['total_municipalities']), "0,25"]
+            ["Tipología", "Núm. municipios y distritos", "Índice de capacidades\nponderado (Promedio)"]
         ]
+
+        for t in [1, 2, 3, 4, 5]:
+            cantidad = typology_counts.get(t, 0)
+            promedio = typology_means.get(t, 0)
+
+            if cantidad == 0:
+                promedio_display = "-"
+            else:
+                promedio_display = f"{promedio:.2f}".replace(".", ",")
+
+            typology_table_data.append([
+                str(t),
+                str(cantidad),
+                promedio_display
+            ])
+
+        # Fila total
+        total_mean = data["ICPond_2026"].mean()
+
+        typology_table_data.append([
+            "Total",
+            str(total_municipalities),
+            f"{total_mean:.2f}".replace(".", ",")
+        ])
         
         typology_table = Table(typology_table_data, colWidths=[4*cm, 5*cm, 6*cm])
         typology_table.setStyle(TableStyle([
@@ -308,14 +362,13 @@ class PdfGenerator:
         
         # Complementary variables table
         elements.append(Paragraph("Tipologías vs. variables complementarias", self.styles["TableTitle"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
         complementary_table_data = [
             ["Tipología", "IPM", "NBI", "IRCA", "IICA"],
             ["Bogotá", "-", "-", "-", "-"],
             ["Ciudades grandes", "-", "-", "-", "-"],
-            ["SC- Centro aglomeración", "-", "-", "-", "-"],
             ["1", "-", "-", "-", "-"],
             ["2", "22,90", "11,53", "0,60", "1,36"],
             ["3", "28,10", "12,28", "2,56", "7,57"],
@@ -343,14 +396,13 @@ class PdfGenerator:
         
         # MDM table
         elements.append(Paragraph("Tipologías vs. MDM", self.styles["TableTitle"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
         mdm_table_data = [
             ["Tipología", "MDM", "MDM\nResultados", "Educación", "Salud", "Servicios", "Seguridad y\nconvivencia"],
             ["Bogotá", "-", "-", "-", "-", "-", "-"],
             ["Ciudades grandes", "-", "-", "-", "-", "-", "-"],
-            ["SC- Centro aglomeración", "-", "-", "-", "-", "-", "-"],
             ["1", "-", "-", "-", "-", "-", "-"],
             ["2", "72,42", "75,97", "64,00", "96,14", "70,19", "73,54"],
             ["3", "65,14", "68,89", "55,43", "90,60", "38,89", "90,62"],
@@ -387,14 +439,13 @@ class PdfGenerator:
         elements.append(Spacer(1, 0.1 * inch))
         
         elements.append(Paragraph("Ingresos propios 2023. Cifras en miles de millones de pesos", self.styles["TableTitle"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
         income_table_data = [
             ["Tipología", "Ingresos tributarios"],
             ["Bogotá", "-"],
             ["Ciudades grandes", "-"],
-            ["SC- Centro aglomeración", "-"],
             ["1", "-"],
             ["2", "168.236"],
             ["3", "34.324"],
@@ -435,7 +486,7 @@ class PdfGenerator:
         
         # Protected areas table
         elements.append(Paragraph("Tipologías vs. Rango de % de áreas protegidas y ecosistemas estratégicos", self.styles["TableTitle"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
         protected_areas_data = [
@@ -443,7 +494,6 @@ class PdfGenerator:
             ["", "0% - 30%", "31% - 50%", "51% - 70%", "71% - 100%", ""],
             ["Bogotá", "0", "0", "0", "0", "0"],
             ["Ciudades grandes", "0", "0", "0", "0", "0"],
-            ["SC- Centro aglomeración", "0", "0", "0", "0", "0"],
             ["1", "0", "0", "0", "0", "0"],
             ["2", "1", "0", "0", "0", "1"],
             ["3", "5", "0", "0", "0", "5"],
@@ -488,7 +538,7 @@ class PdfGenerator:
         
         # Ethnic territories table
         elements.append(Paragraph("Tipologías vs. Rango de % de área de territorios étnicos", self.styles["TableTitle"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de Casanare", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
         ethnic_territories_data = [
@@ -496,7 +546,6 @@ class PdfGenerator:
             ["", "0%", "0,01% - 30%", "31% - 50%", "51% - 70%", "71% - 100%", ""],
             ["Bogotá", "0", "0", "0", "0", "0", "0"],
             ["Ciudades grandes", "0", "0", "0", "0", "0", "0"],
-            ["SC- Centro aglomeración", "0", "0", "0", "0", "0", "0"],
             ["1", "0", "0", "0", "0", "0", "0"],
             ["2", "0", "1", "0", "0", "0", "1"],
             ["3", "4", "1", "0", "0", "0", "5"],
@@ -530,20 +579,20 @@ class PdfGenerator:
         # Annex
         elements.append(Paragraph("Anexo", self.styles["SectionTitle"]))
         elements.append(Spacer(1, 0.1 * inch))
-        elements.append(Paragraph("Tipologías a nivel municipal- Departamento de Casanare", self.styles["SubTitle"]))
+        elements.append(Paragraph("Tipologías a nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["SubTitle"]))
         elements.append(Spacer(1, 0.1 * inch))
         
         # Municipality data for annex
         annex_data = [
-            ["Código DANE", "Departamento", "Municipio", "Tipología 2025"]
+            ["Código DANE", "Departamento", "Municipio", "Tipología 2026"]
         ]
         
-        for municipality in data.get('municipalities', []):
+        for _, row in data.sort_values("Municipio").iterrows():
             annex_data.append([
-                municipality['code'],
-                municipality['department'],
-                municipality['name'],
-                str(municipality['typology'])
+                str(row["CodDANE_txt"]),
+                row["Departamento"],
+                row["Municipio"],
+                str(row["Tipologia_2026R"])
             ])
         
         annex_table = Table(annex_data, colWidths=[3*cm, 3.5*cm, 4.5*cm, 3*cm])
@@ -675,9 +724,8 @@ if __name__ == "__main__":
         ]
     }
     
-    # Create generator instance and produce PDF
-    generator = PdfGenerator("reporte_casanare_final.pdf")
-    generator.generatePdf("Casanare", data_casanare)
+    
+    
     print("✅ PDF generado exitosamente: reporte_casanare_final.pdf")
     print(f"\n📋 Rutas configuradas:")
     print(f"  - Logo: {generator.logo_path}")

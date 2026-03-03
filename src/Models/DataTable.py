@@ -18,7 +18,10 @@ class DataTable:
             "Departamento",
             "Municipio",
             "Tipología_2026_CortesArcMap",
-            "CodDANE_dpto"
+            "CodDANE_dpto",
+            "Tipologia_2026R",
+            "IC_2026",
+            "ICPond_2026"
         ]
         
         df = pd.read_excel(self.route, 
@@ -26,7 +29,8 @@ class DataTable:
                            header=1,
                            nrows=1104,
                            dtype={"CodDANE_txt": str, 
-                                  "CodDANE_dpto": str}
+                                  "CodDANE_dpto": str
+                                  }
                            )
 
         
