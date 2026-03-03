@@ -6,24 +6,42 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
+
+import pandas as pd
 import os
 
 # Colores exactos del DNP
 DNP_BLUE = HexColor('#003366') 
+DNP_BLACK = HexColor("#000000") 
 DNP_LIGHT_BLUE = HexColor('#e6f0ff')  
 DNP_GREY = HexColor('#808080')  
 TABLE_HEADER_BLUE = HexColor('#4a6fa5')  
 
 class PdfGenerator:
+    
+    
     def __init__(self, filename):
+
         self.filename = filename
         self.styles = getSampleStyleSheet()
         self._setup_styles()
-        
-        # Rutas corregidas
-        self.base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        self.logo_path = os.path.join(self.base_path, 'src', 'Views', 'Imgs', 'DNPLogo.png')
-        self.map_path = os.path.join(self.base_path, 'Data', 'Maps', 'Antioquia_0.jpg')
+
+        # 1️⃣ Definir base_path primero
+        self.base_path = os.path.dirname(
+            os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))
+            )
+        )
+
+        # 2️⃣ Definir rutas
+        self.logo_path = os.path.join(
+            self.base_path, 'src', 'Views', 'Imgs', 'DNPLogo.png'
+        )
+
+        self.output_path = os.path.join(self.base_path, "Output")
+
+        # 3️⃣ Crear carpeta Output si no existe
+        os.makedirs(self.output_path, exist_ok=True)
     
     def _setup_styles(self):
         """Configure custom styles exactly like the original PDF"""
@@ -94,13 +112,27 @@ class PdfGenerator:
             name='ListText',
             parent=self.styles['Normal'],
             fontSize=9,
-            alignment=TA_LEFT,
-            spaceAfter=2,
+            alignment=TA_JUSTIFY,   
+            spaceAfter=4,
             leading=12,
             textColor=colors.black,
             fontName='Helvetica',
-            leftIndent=10,
-            bulletIndent=5
+
+            leftIndent=18,        
+            firstLineIndent=-12
+        ))
+        
+        # Table footnote style
+        self.styles.add(ParagraphStyle(
+            name='TableFootnote',
+            parent=self.styles['Normal'],
+            alignment=TA_JUSTIFY, 
+            fontSize=7,          # más pequeño
+            leading=9,
+            textColor=colors.black,
+            leftIndent=0,
+            spaceBefore=4,
+            spaceAfter=2,
         ))
         
         # Table title - bold, centered (cambiado a centrado)
@@ -173,6 +205,8 @@ class PdfGenerator:
     
     def generatePdf(self, departmentName, data):
         
+        elements = []
+        
         # Total municipalities
         total_municipalities = len(data)
 
@@ -187,19 +221,38 @@ class PdfGenerator:
             .mean()
         )
         
+        def get_map_info(department_name):
+            formatted_name = department_name.lower().capitalize()
+
+            maps_folder = os.path.join(self.base_path, 'Data', 'Maps')
+
+            path_with_names = os.path.join(maps_folder, f"{formatted_name}_1.jpg")
+            path_without_names = os.path.join(maps_folder, f"{formatted_name}_0.jpg")
+
+            if os.path.exists(path_with_names):
+                return path_with_names, True
+            elif os.path.exists(path_without_names):
+                return path_without_names, False
+            else:
+                return None, None
+                
+        
         """
         Generates the PDF exactly matching the original document
         """
+        pdf_file_path = os.path.join(self.output_path, f"{departmentName}.pdf")
+
+        
         doc = SimpleDocTemplate(
-            self.filename,
+            pdf_file_path,
             pagesize=letter,
             rightMargin=50,
             leftMargin=50,
             topMargin=50,
-            bottomMargin=90  # Aumentado para dar más espacio al footer de 3 líneas
+            bottomMargin=90
         )
         
-        elements = []
+
         
         # ==================== PAGE 1 ====================
         
@@ -210,7 +263,8 @@ class PdfGenerator:
         elements.append(Spacer(1, 0.1 * inch))
         
         # Department subtitle
-        dept_text = f"""<font size=16><b><font color='#003366'>Departamento: {departmentName}</font></b></font>"""
+        formatted_department = departmentName.title()
+        dept_text = f"""<font size=16><b><font color='#003366'>Departamento: {formatted_department}</font></b></font>"""
         dept_title = Paragraph(dept_text, self.styles["DeptTitle"])
         elements.append(dept_title)
         elements.append(Spacer(1, 0.15 * inch))
@@ -219,67 +273,144 @@ class PdfGenerator:
         map_title = Paragraph("<b>Mapa de tipologías municipales</b>", self.styles["SubTitle"])
         elements.append(map_title)
         elements.append(Spacer(1, 0.1 * inch))
-        
+               
         # Map image
-        try:
-            if os.path.exists(self.map_path):
-                mapa = Image(self.map_path, width=6*inch, height=7*inch)
-                elements.append(mapa)
-            else:
-                print(f"⚠️ Mapa no encontrado en: {self.map_path}")
-                elements.append(Paragraph("<i>Mapa de tipologías municipales</i>", self.styles["NormalText"]))
-        except Exception as e:
-            print(f"Error al cargar el mapa: {e}")
-            elements.append(Paragraph("<i>Mapa de tipologías municipales</i>", self.styles["NormalText"]))
+        map_path, has_names = get_map_info(departmentName)
+
+        if map_path:
+            mapa = Image(map_path, width=5*inch, height=6*inch)
+            elements.append(mapa)
+            elements.append(Spacer(1, 0.05 * inch))
+            elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
+            elements.append(PageBreak())
+
+            if not has_names:
+                elements.append(Spacer(1, 0.2 * inch))
+
+                # Evitar warning
+                data = data.copy()
+                data["Cod_Municipio"] = data["CodDANE_txt"].astype(str).str[-3:]
+
+                # Ordenar municipios
+                data = data.sort_values("Municipio").reset_index(drop=True)
+
+                # Encabezado
+                table_data = [["Cod", "Municipio", "Cod", "Municipio", "Cod", "Municipio"]]
+
+                total = len(data)
+
+                # Calcular tamaño de cada bloque
+                block_size = total // 3 + (1 if total % 3 > 0 else 0)
+
+                left_data = data.iloc[:block_size]
+                middle_data = data.iloc[block_size:block_size*2].reset_index(drop=True)
+                right_data = data.iloc[block_size*2:].reset_index(drop=True)
+
+                # Construir filas
+                for i in range(block_size):
+
+                    # LEFT
+                    if i < len(left_data):
+                        left_cod = left_data.iloc[i]["Cod_Municipio"]
+                        left_mun = left_data.iloc[i]["Municipio"]
+                    else:
+                        left_cod, left_mun = "", ""
+
+                    # MIDDLE
+                    if i < len(middle_data):
+                        mid_cod = middle_data.iloc[i]["Cod_Municipio"]
+                        mid_mun = middle_data.iloc[i]["Municipio"]
+                    else:
+                        mid_cod, mid_mun = "", ""
+
+                    # RIGHT
+                    if i < len(right_data):
+                        right_cod = right_data.iloc[i]["Cod_Municipio"]
+                        right_mun = right_data.iloc[i]["Municipio"]
+                    else:
+                        right_cod, right_mun = "", ""
+
+                    table_data.append([
+                        left_cod, left_mun,
+                        mid_cod, mid_mun,
+                        right_cod, right_mun
+                    ])
+
+                # Crear tabla
+                cod_table = Table(
+                    table_data,
+                    colWidths=[1.5*cm, 3.5*cm,
+                            1.5*cm, 3.5*cm,
+                            1.5*cm, 3.5*cm],
+                    repeatRows=1
+                )
+
+                cod_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
+                    ('FONTSIZE', (0, 0), (-1, -1), 6),
+                ]))
+
+                elements.append(cod_table)
+                
+                
+        else:
+            elements.append(Paragraph("<i>Mapa no disponible</i>", self.styles["NormalText"]))
         
-        elements.append(PageBreak())
         
         # ==================== PAGE 2 ====================
-        
-        # Municipal typologies 
+# ===================== ANALISIS TIPOLÓGICO =====================
+
         elements.append(Paragraph("Tipologías municipales 2026", self.styles["SectionTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
-        
-        # Typologies description with bullet points
-        # Conteo por tipología
+
         typology_counts = data["Tipologia_2026R"].value_counts()
 
-        # Lista municipios por tipología
-        def municipios_por_tipologia(t):
-            return ", ".join(
-                data.loc[data["Tipologia_2026R"] == t, "Municipio"]
-                .sort_values()
-                .tolist()
-            )
+        analisis_tipologias = {
+            1: "Los municipios de esta tipología se caracterizan por tener en promedio los más altos niveles de capacidades fiscales y administrativas, y al mismo tiempo son los municipios mejor conectados y más densos.",
+            2: "Los municipios de esta tipología se caracterizan porque tienen niveles intermedios-altos de capacidad fiscal y administrativa, conectividad y densidad poblacional.",
+            3: "Los municipios de esta tipología se caracterizan por tener niveles intermedios de capacidad fiscal y administrativa, conectividad y densidad poblacional.",
+            4: "Los municipios de esta tipología se caracterizan por tener niveles intermedios-bajos de capacidad administrativa y fiscal, conectividad y densidad poblacional.",
+            5: "Los municipios de esta tipología se caracterizan por tener bajos niveles de capacidad administrativa y fiscal; al mismo tiempo son los más desconectados y menos densos (mayor ruralidad)."
+        }
 
-        typologies_items = [
-            f"• El departamento de <b>{departmentName}</b> está conformado por <b>{total_municipalities}</b> municipios.",
-        ]
+        formatted_department = departmentName.title()
+
+        # Primer punto
+        elements.append(Paragraph(
+            f"• El departamento de <b>{formatted_department}</b> está conformado por <b>{total_municipalities}</b> municipios.",
+            self.styles["ListText"]
+        ))
+        elements.append(Spacer(1, 0.05 * inch))
 
         for t in [1, 2, 3, 4, 5]:
+
             cantidad = typology_counts.get(t, 0)
 
             if cantidad == 0:
-                texto = f"• En la <b>Tipología {t}</b> no se encuentra ningún municipio."
-            else:
-                lista_mun = municipios_por_tipologia(t)
-                texto = f"• En la <b>Tipología {t}</b> se encuentran <b>{cantidad}</b> municipio{'' if cantidad == 1 else 's'}: <b>{lista_mun}</b>."
+                texto = (
+                    f"• En la <b>Tipología {t}</b> no se encuentra ningún municipio de este departamento. "
+                    f"{analisis_tipologias[t]}"
+                )
 
-            typologies_items.append(texto)
-        
-        for item in typologies_items:
-            elements.append(Paragraph(item, self.styles["ListText"]))
-            elements.append(Spacer(1, 0.02 * inch))
-        
-        elements.append(Spacer(1, 0.1 * inch))
-        
-        # Results table title (centrado)
-        elements.append(Paragraph("Resultados de tipologías municipales y distritales - Departamento de {departmentName}".format(departmentName=departmentName), 
-                                  self.styles["TableTitle"]))
-        elements.append(Spacer(1, 0.05 * inch))
-        
+            elif cantidad == 1:
+                municipio = data.loc[data["Tipologia_2026R"] == t, "Municipio"].iloc[0]
+                texto = (
+                    f"• En la <b>Tipología {t}</b> se encuentra <b>1 municipio</b>, <b>{municipio}</b>. "
+                    f"{analisis_tipologias[t]}"
+                )
+
+            else:
+                texto = (
+                    f"• En la <b>Tipología {t}</b> se encuentran <b>{cantidad} municipios</b>. "
+                    f"{analisis_tipologias[t]}"
+                )
+
+            elements.append(Paragraph(texto, self.styles["ListText"]))
+            elements.append(Spacer(1, 0.05 * inch))
         # Typologies results table
-        # Promedios ICPond por tipología
         # Promedio del índice por tipología dentro del departamento
         typology_means = (
             data
@@ -332,7 +463,7 @@ class PdfGenerator:
         
         elements.append(typology_table)
         elements.append(Spacer(1, 0.05 * inch))
-        elements.append(Paragraph("Fuente: Elaboración propia", self.styles["SourceText"]))
+        elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
         elements.append(PageBreak())
         
         # ==================== PAGE 3 ====================
@@ -519,7 +650,7 @@ class PdfGenerator:
         
         elements.append(protected_areas_table)
         elements.append(Spacer(1, 0.05 * inch))
-        elements.append(Paragraph("Fuente: Elaboración propia", self.styles["SourceText"]))
+        elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
         elements.append(PageBreak())
@@ -571,9 +702,27 @@ class PdfGenerator:
         
         elements.append(ethnic_territories_table)
         elements.append(Spacer(1, 0.05 * inch))
-        elements.append(Paragraph("Fuente: Elaboración propia", self.styles["SourceText"]))
-        elements.append(PageBreak())
+        elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
         
+        
+        
+        elements.append(Spacer(1, 0.1 * inch))
+
+        nota1 = ("1 Dentro del registro se incluyen los Parques Naturales Regionales "
+                "y las categorías del Sistema de Áreas de Parques Nacionales con base "
+                "en el Decreto 2811 de 1974 (Artículo 329).")
+
+        nota2 = ("2 Se incluyen todas las categorías de esta fuente de información, a saber: "
+                "Páramos, Humedales RAMSAR, Bosque Seco Tropical, Manglares, Pastos Marinos, "
+                "Arrecifes coralinos, Reservas Forestales de Ley 2 de 1959 (Zona Tipo A), "
+                "Áreas Susceptibles a Procesos de Restauración Ecológica, Áreas de proyectos "
+                "Bosques de Paz orientados a la restauración ambiental y reconciliación de víctimas.")
+
+        elements.append(Paragraph(nota1, self.styles["TableFootnote"]))
+        elements.append(Paragraph(nota2, self.styles["TableFootnote"]))
+        
+        
+        elements.append(PageBreak())
         # ==================== PAGE 7 ====================
         
         # Annex
@@ -587,7 +736,21 @@ class PdfGenerator:
             ["Código DANE", "Departamento", "Municipio", "Tipología 2026"]
         ]
         
-        for _, row in data.sort_values("Municipio").iterrows():
+        # Orden personalizado de tipologías
+        # Orden personalizado de tipologías
+        orden_tipologia = ["Ciudades grandes", 1, 2, 3, 4, 5]
+
+        data["Tipologia_orden"] = data["Tipologia_2026R"].astype(str)
+
+        data["Tipologia_orden"] = pd.Categorical(
+            data["Tipologia_orden"],
+            categories=[str(x) for x in orden_tipologia],
+            ordered=True
+        )
+
+        data_ordenado = data.sort_values(["Tipologia_orden", "Municipio"])
+
+        for _, row in data_ordenado.iterrows():
             annex_data.append([
                 str(row["CodDANE_txt"]),
                 row["Departamento"],
@@ -595,7 +758,11 @@ class PdfGenerator:
                 str(row["Tipologia_2026R"])
             ])
         
-        annex_table = Table(annex_data, colWidths=[3*cm, 3.5*cm, 4.5*cm, 3*cm])
+        annex_table = Table(
+            annex_data,
+            colWidths=[3*cm, 3.5*cm, 4.5*cm, 3*cm],
+            repeatRows=1
+        )
         annex_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -610,24 +777,9 @@ class PdfGenerator:
         elements.append(annex_table)
         elements.append(Spacer(1, 0.2 * inch))
         
-        # Footnotes
-        footnote1 = """
-        <font size=6>
-        <super>1</super> Dentro del registro se incluyen los Parques Naturales Regionales y las categorías del Sistema de Áreas de Parques Nacionales con base en el Decreto 2811 de 1974 (Artículo 329)
-        </font>
-        """
-        elements.append(Paragraph(footnote1, self.styles["Footnote"]))
-        elements.append(Spacer(1, 0.02 * inch))
-        
-        footnote2 = """
-        <font size=6>
-        <super>2</super> Se incluyen todas las categorías de esta fuente de información, a saber: Páramos, Humedales RAMSAR, Bosque Seco Tropical, Manglares, Pastos Marinos, Arrecifes coralinos, Reservas Forestales de Ley 2 de 1959 (Zona Tipo A), Áreas Susceptibles a Procesos de Restauración Ecológica, Áreas de proyectos Bosques de Paz orientados a la restauración ambiental y reconciliación de víctimas
-        </font>
-        """
-        elements.append(Paragraph(footnote2, self.styles["Footnote"]))
-        
         # Build PDF with custom header and footer on each page
         doc.build(elements, onFirstPage=self._header_footer, onLaterPages=self._header_footer)
+        
     
     def _header_footer(self, canvas, doc):
         """Add header and footer to each page"""
@@ -644,19 +796,19 @@ class PdfGenerator:
                 # Bajé la posición Y de 760 a 750 para dar más espacio arriba
                 canvas.drawImage(self.logo_path, logo_x, 750, width=logo_width, height=35, preserveAspectRatio=True, mask='auto')
             else:
-                print(f"⚠️ Logo no encontrado en: {self.logo_path}")
+                print(f"Logo no encontrado en: {self.logo_path}")
         except Exception as e:
             print(f"Error al cargar el logo: {e}")
         
         # Header line (blue) - centrada
         line_width = 530
         line_start = (page_width - line_width) / 2
-        canvas.setStrokeColor(DNP_BLUE)
+        canvas.setStrokeColor(DNP_BLACK)
         canvas.setLineWidth(2)
         canvas.line(line_start, 740, line_start + line_width, 740)  # Línea también bajada
         
         # Footer line (blue) - centrada
-        canvas.setStrokeColor(DNP_BLUE)
+        canvas.setStrokeColor(DNP_BLACK)
         canvas.setLineWidth(1)
         canvas.line(line_start, 80, line_start + line_width, 80)  # Línea del footer más arriba para dar espacio
         
@@ -678,55 +830,3 @@ class PdfGenerator:
         canvas.drawRightString(line_start + line_width, 45, f"Página {page_num}")
         
         canvas.restoreState()
-
-
-# Example usage
-if __name__ == "__main__":
-    # Data based on the Casanare PDF
-    data_casanare = {
-        'total_municipalities': 19,
-        'typology2': {
-            'quantity': 1,
-            'municipalities': 'Yopal'
-        },
-        'typology3': {
-            'quantity': 5,
-            'municipalities': 'Villanueva, Aguazul, Monterrey, Tauramena, Sabanalarga'
-        },
-        'typology4': {
-            'quantity': 4,
-            'municipalities': 'Pore, Recetor, Nunchía, Chámeza'
-        },
-        'typology5': {
-            'quantity': 9,
-            'municipalities': 'Sácama, La Salina, Támara, Maní, Trinidad, Paz de Ariporo, San Luis de Palenque, Hato Corozal, Orocué'
-        },
-        'municipalities': [
-            {'code': '85001', 'department': 'CASANARE', 'name': 'YOPAL', 'typology': 2},
-            {'code': '85440', 'department': 'CASANARE', 'name': 'VILLANUEVA', 'typology': 3},
-            {'code': '85010', 'department': 'CASANARE', 'name': 'AGUAZUL', 'typology': 3},
-            {'code': '85162', 'department': 'CASANARE', 'name': 'MONTERREY', 'typology': 3},
-            {'code': '85410', 'department': 'CASANARE', 'name': 'TAURAMENA', 'typology': 3},
-            {'code': '85300', 'department': 'CASANARE', 'name': 'SABANALARGA', 'typology': 3},
-            {'code': '85263', 'department': 'CASANARE', 'name': 'PORE', 'typology': 4},
-            {'code': '85279', 'department': 'CASANARE', 'name': 'RECETOR', 'typology': 4},
-            {'code': '85225', 'department': 'CASANARE', 'name': 'NUNCHÍA', 'typology': 4},
-            {'code': '85015', 'department': 'CASANARE', 'name': 'CHÁMEZA', 'typology': 4},
-            {'code': '85315', 'department': 'CASANARE', 'name': 'SÁCAMA', 'typology': 5},
-            {'code': '85136', 'department': 'CASANARE', 'name': 'LA SALINA', 'typology': 5},
-            {'code': '85400', 'department': 'CASANARE', 'name': 'TÁMARA', 'typology': 5},
-            {'code': '85139', 'department': 'CASANARE', 'name': 'MANÍ', 'typology': 5},
-            {'code': '85430', 'department': 'CASANARE', 'name': 'TRINIDAD', 'typology': 5},
-            {'code': '85250', 'department': 'CASANARE', 'name': 'PAZ DE ARIPORO', 'typology': 5},
-            {'code': '85325', 'department': 'CASANARE', 'name': 'SAN LUIS DE PALENQUE', 'typology': 5},
-            {'code': '85125', 'department': 'CASANARE', 'name': 'HATO COROZAL', 'typology': 5},
-            {'code': '85230', 'department': 'CASANARE', 'name': 'OROCUÉ', 'typology': 5}
-        ]
-    }
-    
-    
-    
-    print("✅ PDF generado exitosamente: reporte_casanare_final.pdf")
-    print(f"\n📋 Rutas configuradas:")
-    print(f"  - Logo: {generator.logo_path}")
-    print(f"  - Mapa: {generator.map_path}")
