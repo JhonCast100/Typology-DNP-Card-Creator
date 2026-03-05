@@ -27,7 +27,15 @@ class DataTable:
             "IRCA_2024",
             "IICA_2023",
             "Ingresos_propios_pc_2024",
-            "Rangos_AA_V2026"
+            "Rangos_AA_V2026",
+            "Rangos_ATE_V2026",
+            "MDM_2024",
+            "MDM2024_resultados",
+            "MDM2024_educacion",
+            "MDM2024_salud",
+            "MDM2024_servicios",
+            "MDM2024_seguridad"
+            
         ]
         
         df = pd.read_excel(self.route, 

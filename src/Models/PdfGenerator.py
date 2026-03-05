@@ -1,3 +1,5 @@
+from turtle import color
+
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib import colors
@@ -7,10 +9,11 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 
+
 import pandas as pd
 import os
 
-# Colores exactos del DNP
+# Definition of DNP colors
 DNP_BLUE = HexColor('#003366') 
 DNP_BLACK = HexColor("#000000") 
 DNP_LIGHT_BLUE = HexColor('#e6f0ff')  
@@ -26,27 +29,25 @@ class PdfGenerator:
         self.styles = getSampleStyleSheet()
         self._setup_styles()
 
-        # 1️⃣ Definir base_path primero
+        #Base path
         self.base_path = os.path.dirname(
             os.path.dirname(
                 os.path.dirname(os.path.abspath(__file__))
             )
         )
-
-        # 2️⃣ Definir rutas
         self.logo_path = os.path.join(
             self.base_path, 'src', 'Views', 'Imgs', 'DNPLogo.png'
         )
 
         self.output_path = os.path.join(self.base_path, "Output")
 
-        # 3️⃣ Crear carpeta Output si no existe
+        #Output directory
         os.makedirs(self.output_path, exist_ok=True)
     
     def _setup_styles(self):
         """Configure custom styles exactly like the original PDF"""
         
-        # Main title - centered, bold (más compacto)
+        # Main title
         self.styles.add(ParagraphStyle(
             name='MainTitle',
             parent=self.styles['Heading1'],
@@ -58,7 +59,7 @@ class PdfGenerator:
             fontName='Helvetica-Bold'
         ))
         
-        # Department title - centered, bold, blue (más compacto)
+        # Department title
         self.styles.add(ParagraphStyle(
             name='DeptTitle',
             parent=self.styles['Heading1'],
@@ -70,7 +71,7 @@ class PdfGenerator:
             fontName='Helvetica-Bold'
         ))
         
-        # Section title - left aligned, bold, blue
+        # Section title
         self.styles.add(ParagraphStyle(
             name='SectionTitle',
             parent=self.styles['Heading2'],
@@ -83,7 +84,7 @@ class PdfGenerator:
             leftIndent=0
         ))
         
-        # Subtitle - centered, bold
+        # Subtitle
         self.styles.add(ParagraphStyle(
             name='SubTitle',
             parent=self.styles['Heading2'],
@@ -95,7 +96,7 @@ class PdfGenerator:
             fontName='Helvetica-Bold'
         ))
         
-        # Normal text - justified
+        # Normal text
         self.styles.add(ParagraphStyle(
             name='NormalText',
             parent=self.styles['Normal'],
@@ -107,7 +108,7 @@ class PdfGenerator:
             fontName='Helvetica'
         ))
         
-        # List text - left aligned with bullet
+        # List text
         self.styles.add(ParagraphStyle(
             name='ListText',
             parent=self.styles['Normal'],
@@ -135,12 +136,12 @@ class PdfGenerator:
             spaceAfter=2,
         ))
         
-        # Table title - bold, centered (cambiado a centrado)
+        # Table title
         self.styles.add(ParagraphStyle(
             name='TableTitle',
             parent=self.styles['Normal'],
             fontSize=9,
-            alignment=TA_CENTER,  # Cambiado a centrado
+            alignment=TA_CENTER,  
             spaceAfter=2,
             leading=11,
             textColor=colors.black,
@@ -180,7 +181,7 @@ class PdfGenerator:
             fontName='Helvetica'
         ))
         
-        # Source text - italic, centrado debajo de la tabla
+        # Source text
         self.styles.add(ParagraphStyle(
             name='SourceText',
             parent=self.styles['Italic'],
@@ -202,8 +203,20 @@ class PdfGenerator:
             leading=8,
             fontName='Helvetica-Oblique'
         ))
+        
+        self.ranking_colors = [
+            colors.HexColor("#C6E8C6"),  
+            colors.HexColor("#E2F3D5"),  
+            colors.HexColor("#FFF4C2"), 
+            colors.HexColor("#FFD9A8"),  
+            colors.HexColor("#FFBFA8"),  
+            colors.HexColor("#F5A6A6")  
+        ]
     
     def generatePdf(self, departmentName, data):
+        
+        # Format department name: first letter uppercase, rest lowercase
+        departmentName = departmentName.title()
         
         elements = []
         
@@ -213,8 +226,7 @@ class PdfGenerator:
         # Count of municipalities by typology
         typology_counts = data["Tipologia_2026R"].value_counts()
 
-        # Promedio ICPond por tipología
-        # Promedio del índice por tipología dentro del departamento
+        # Mean ICPond by typology
         typology_means = (
             data
             .groupby("Tipologia_2026R")["ICPond_2026"]
@@ -256,15 +268,19 @@ class PdfGenerator:
         
         # ==================== PAGE 1 ====================
         
-        # Main title - más pegado
-        title_text = """<font size=14><b>Tipologías de las Entidades Territoriales para el Reconocimiento de Capacidades. Resultados para la Vigencia 2026</b></font>"""
+        # Main title
+        title_text = """<font size=14><b>Tipologías de las Entidades Territoriales para el Reconocimiento de Capacidades.</b></font>"""
+        title_text2 = """<font size=14><b>Resultados para la Vigencia 2026</b></font>"""
+        
         title = Paragraph(title_text, self.styles["MainTitle"])
+        elements.append(title)
+        title = Paragraph(title_text2, self.styles["MainTitle"])
         elements.append(title)
         elements.append(Spacer(1, 0.1 * inch))
         
+        
         # Department subtitle
-        formatted_department = departmentName.title()
-        dept_text = f"""<font size=16><b><font color='#003366'>Departamento: {formatted_department}</font></b></font>"""
+        dept_text = f"""<font size=16><b><font color='#003366'>Departamento: {departmentName}</font></b></font>"""
         dept_title = Paragraph(dept_text, self.styles["DeptTitle"])
         elements.append(dept_title)
         elements.append(Spacer(1, 0.15 * inch))
@@ -287,26 +303,22 @@ class PdfGenerator:
             if not has_names:
                 elements.append(Spacer(1, 0.2 * inch))
 
-                # Evitar warning
                 data = data.copy()
                 data["Cod_Municipio"] = data["CodDANE_txt"].astype(str).str[-3:]
 
-                # Ordenar municipios
                 data = data.sort_values("Municipio").reset_index(drop=True)
 
-                # Encabezado
                 table_data = [["Cod", "Municipio", "Cod", "Municipio", "Cod", "Municipio"]]
 
                 total = len(data)
 
-                # Calcular tamaño de cada bloque
                 block_size = total // 3 + (1 if total % 3 > 0 else 0)
 
                 left_data = data.iloc[:block_size]
                 middle_data = data.iloc[block_size:block_size*2].reset_index(drop=True)
                 right_data = data.iloc[block_size*2:].reset_index(drop=True)
 
-                # Construir filas
+                # Build table rows
                 for i in range(block_size):
 
                     # LEFT
@@ -361,7 +373,6 @@ class PdfGenerator:
         
         
         # ==================== PAGE 2 ====================
-# ===================== ANALISIS TIPOLÓGICO =====================
 
         elements.append(Paragraph("Tipologías municipales 2026", self.styles["SectionTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
@@ -376,11 +387,9 @@ class PdfGenerator:
             5: "Los municipios de esta tipología se caracterizan por tener bajos niveles de capacidad administrativa y fiscal; al mismo tiempo son los más desconectados y menos densos (mayor ruralidad)."
         }
 
-        formatted_department = departmentName.title()
-
-        # Primer punto
+        #First bullet point with total municipalities
         elements.append(Paragraph(
-            f"• El departamento de <b>{formatted_department}</b> está conformado por <b>{total_municipalities}</b> municipios.",
+            f"• El departamento de <b>{departmentName}</b> está conformado por <b>{total_municipalities}</b> municipios.",
             self.styles["ListText"]
         ))
         elements.append(Spacer(1, 0.05 * inch))
@@ -412,7 +421,13 @@ class PdfGenerator:
             elements.append(Spacer(1, 0.05 * inch))
             
 
+        #Table 1
         # Typologies results table
+        elements.append(Paragraph("Resultados de tipologías municipales y distritales", self.styles["TableTitle"]))
+        elements.append(Paragraph("Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
+        elements.append(Spacer(1, 0.05 * inch))
+        
+        
         total_municipalities = len(data)
 
         typology_table_data = [
@@ -422,7 +437,7 @@ class PdfGenerator:
             "Índice de capacidades\nponderado (Promedio)"]
         ]
 
-        # Filas especiales
+        # Specify the order of typologies to display
         tipologias = [
             ("Bogotá", "Bogotá"),
             ("Ciudades grandes", "Ciudades grandes"),
@@ -433,22 +448,27 @@ class PdfGenerator:
             ("5", 5),
         ]
 
+        promedios_tipologias = []
         for label, t in tipologias:
 
             subset = data[data["Tipología_2026_CortesArcMap"] == t]
 
             cantidad = len(subset)
+            
+            #Color Adjustment
+            if cantidad == 0:
+                promedio_display = "-"
+                promedio = None
+            else:
+                promedio = subset["ICPond_2026"].mean()
+                promedio_display = f"{promedio:.2f}".replace(".", ",")
+
+            promedios_tipologias.append(promedio)
 
             if total_municipalities > 0:
                 porcentaje = cantidad / total_municipalities
             else:
                 porcentaje = 0
-
-            if cantidad == 0:
-                promedio_display = "-"
-            else:
-                promedio = subset["ICPond_2026"].mean()
-                promedio_display = f"{promedio:.2f}".replace(".", ",")
 
             porcentaje_display = f"{porcentaje*100:.0f}%"
 
@@ -459,7 +479,6 @@ class PdfGenerator:
                 promedio_display
             ])
 
-        # Fila Total
         total_mean = data["ICPond_2026"].mean()
 
         typology_table_data.append([
@@ -474,10 +493,29 @@ class PdfGenerator:
             colWidths=[4*cm, 4*cm, 4*cm, 5*cm],
             repeatRows=1
         )
+        
+        # obtener valores válidos
+        valid_values = [v for v in promedios_tipologias if v is not None]
 
-        typology_table.setStyle(TableStyle([
+        # ordenar de mayor a menor
+        sorted_vals = sorted(valid_values, reverse=True)
+
+        row_colors = {}
+
+        for i, val in enumerate(promedios_tipologias):
+            if val is None:
+                continue
+
+            rank = sorted_vals.index(val)
+
+            if rank < len(self.ranking_colors):
+                row_colors[i+1] =   self.ranking_colors[rank]
+        
+
+        table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                        
 
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -495,8 +533,15 @@ class PdfGenerator:
 
             ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-        ]))
+        ])
+        table_style.add('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey)
+        table_style.add('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+        
+        for row, color in row_colors.items():
+            table_style.add('BACKGROUND', (3, row), (3, row), color)
 
+        typology_table.setStyle(table_style)
+        
         elements.append(typology_table)
         elements.append(Spacer(1, 0.05 * inch))
         elements.append(
@@ -533,22 +578,47 @@ class PdfGenerator:
         elements.append(Spacer(1, 0.1 * inch))
         
         #Table 2
-        
-        # Reemplazar textos problemáticos
-        # Reemplazar valores problemáticos solo en columnas de texto
         text_cols = data.select_dtypes(include='object').columns
         data[text_cols] = data[text_cols].replace(["Sin Información", "-"], pd.NA)
         pd.set_option('future.no_silent_downcasting', True)
 
-        # Convertir a numérico
+        #Convert relevant columns to numeric, coercing errors to NaN
         data["IPM_2018"] = pd.to_numeric(data["IPM_2018"], errors="coerce")
         data["NBI_2018"] = pd.to_numeric(data["NBI_2018"], errors="coerce")
         data["IRCA_2024"] = pd.to_numeric(data["IRCA_2024"], errors="coerce")
         data["IICA_2023"] = pd.to_numeric(data["IICA_2023"], errors="coerce")
+        
+        ipm_vals = []
+        nbi_vals = []
+        irca_vals = []
+        iica_vals = []
+        
+        def aplicar_colores(valores, col_index, table_style):
 
-        # ================================
-        # FUNCIÓN PROMEDIO POR TIPOLOGÍA
-        # ================================
+            valid = [v for v in valores if v is not None]
+
+            if not valid:
+                return
+
+            # menor = mejor
+            sorted_vals = sorted(valid)
+
+            for i, val in enumerate(valores):
+
+                if val is None:
+                    continue
+
+                rank = sorted_vals.index(val)
+
+                if rank < len(self.ranking_colors):
+                    table_style.add(
+                        'BACKGROUND',
+                        (col_index, i+1),
+                        (col_index, i+1),
+                        self.ranking_colors[rank]
+                    )
+        
+        
 
         def promedio_tipologia(columna, tipologia):
 
@@ -583,11 +653,34 @@ class PdfGenerator:
         ]
 
         for t in tipologias:
-            
-            ipm = promedio_tipologia("IPM_2018", t)
-            nbi = promedio_tipologia("NBI_2018", t)
-            irca = promedio_tipologia("IRCA_2024", t)
-            iica = promedio_tipologia("IICA_2023", t)
+            subset = data[data["Tipología_2026_CortesArcMap"] == t]
+
+            if subset.empty:
+                ipm = "-"
+                nbi = "-"
+                irca = "-"
+                iica = "-"
+
+                ipm_vals.append(None)
+                nbi_vals.append(None)
+                irca_vals.append(None)
+                iica_vals.append(None)
+
+            else:
+                ipm_val = subset["IPM_2018"].mean()
+                nbi_val = subset["NBI_2018"].mean()
+                irca_val = subset["IRCA_2024"].mean()
+                iica_val = subset["IICA_2023"].mean()
+
+                ipm_vals.append(ipm_val)
+                nbi_vals.append(nbi_val)
+                irca_vals.append(irca_val)
+                iica_vals.append(iica_val)
+
+                ipm = f"{ipm_val:.2f}".replace(".", ",")
+                nbi = f"{nbi_val:.2f}".replace(".", ",")
+                irca = f"{irca_val:.2f}".replace(".", ",")
+                iica = f"{iica_val:.2f}".replace(".", ",")
 
             complementary_table_data.append([
                 str(t),
@@ -597,7 +690,7 @@ class PdfGenerator:
                 iica
             ])
 
-        # ---- TOTAL (promedio del departamento completo) ----
+        # Total row
         total_ipm = f"{data['IPM_2018'].mean():.2f}".replace(".", ",")
         total_nbi = f"{data['NBI_2018'].mean():.2f}".replace(".", ",")
         total_irca = f"{data['IRCA_2024'].mean():.2f}".replace(".", ",")
@@ -610,9 +703,10 @@ class PdfGenerator:
             total_irca,
             total_iica
         ])
-
+        
+        
         complementary_table = Table(complementary_table_data, colWidths=[3.5*cm, 2.8*cm, 2.8*cm, 2.8*cm, 2.8*cm])
-        complementary_table.setStyle(TableStyle([
+        table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -621,12 +715,126 @@ class PdfGenerator:
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-        ]))
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ])
+        
+        aplicar_colores(ipm_vals, 1, table_style)
+        aplicar_colores(nbi_vals, 2, table_style)
+        aplicar_colores(irca_vals, 3, table_style)
+        aplicar_colores(iica_vals, 4, table_style)
+        complementary_table.setStyle(table_style)
+        
+        table_style.add(
+            'BACKGROUND',
+            (0, len(complementary_table_data)-1),
+            (-1, len(complementary_table_data)-1),
+            colors.lightgrey
+        )
+        complementary_table.setStyle(table_style)
+        
+
+            
 
         elements.append(complementary_table)
         elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia con base en la información del DANE y DNP", self.styles["SourceText"]))
         elements.append(Spacer(1, 0.1 * inch))
+        
+        #Table 2.1 - MDM table
+        elements.append(Paragraph("Tipologías vs. MDM 2024", self.styles["TableTitle"]))
+        elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
+        elements.append(Spacer(1, 0.05 * inch))
+        
+        mdm_data = [
+            ["Tipología", "MDM", "MDM Resultados", "Educación", "Salud", "Servicios", "Seguridad y\n convivencia"]
+        ]
+
+        tipologias = [
+            ("Bogotá", "Bogotá"),
+            ("Ciudades grandes", "Ciudades grandes"),
+            ("1", 1),
+            ("2", 2),
+            ("3", 3),
+            ("4", 4),
+            ("5", 5),
+        ]
+
+        columnas = [
+            "MDM_2024",
+            "MDM2024_resultados",
+            "MDM2024_educacion",
+            "MDM2024_salud",
+            "MDM2024_servicios",
+            "MDM2024_seguridad"
+        ]
+
+        for label, t in tipologias:
+
+            subset = data[data["Tipología_2026_CortesArcMap"] == t]
+
+            fila = [label]
+
+            if len(subset) == 0:
+                fila += ["-"] * len(columnas)
+
+            else:
+
+                for col in columnas:
+
+                    promedio = subset[col].mean()
+
+                    if pd.isna(promedio):
+                        fila.append("-")
+                    else:
+                        valor = promedio
+                        texto = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        fila.append(texto)
+
+            mdm_data.append(fila)
+            
+        fila_total = ["Total"]
+
+        for col in columnas:
+
+            promedio = data[col].mean()
+
+            if pd.isna(promedio):
+                fila_total.append("-")
+            else:
+                valor = promedio
+                texto = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                fila_total.append(texto)
+
+        mdm_data.append(fila_total)
+        
+        mdm_table = Table(mdm_data, colWidths=[3*cm, 2.2*cm, 2.6*cm, 2.2*cm, 2.2*cm, 2.2*cm, 3*cm])
+
+        mdm_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+
+            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
+            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+        ]))
+        
+        elements.append(mdm_table)
+        elements.append(Spacer(1, 0.05 * inch))
+        elements.append(
+            Paragraph(
+                "Fuente: Elaboración propia con base en información del DNP",
+                self.styles["SourceText"]
+            )
+        )
+        elements.append(Spacer(1, 0.1 * inch))
+        
         
         # ==================== PAGE 4 ====================
         
@@ -638,7 +846,7 @@ class PdfGenerator:
         elements.append(Paragraph(income_text, self.styles["NormalText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
-        elements.append(Paragraph("Ingresos propios 2023. Cifras en miles de millones de pesos", self.styles["TableTitle"]))
+        elements.append(Paragraph("Ingresos propios 2024. Cifras en pesos", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
@@ -674,7 +882,7 @@ class PdfGenerator:
                 ingreso_display
             ])
 
-        # Fila Total
+        # Total row
         if len(data) == 0:
             total_display = "-"
         else:
@@ -736,19 +944,67 @@ class PdfGenerator:
         
         #Table 4
         protected_areas_data = [
-            ["Tipología", "% Área de protección ambiental y ecosistemas estratégicos", "", "", "", "Total"],
-            ["", "0% - 30%", "31% - 50%", "51% - 70%", "71% - 100%", ""],
-            ["Bogotá", "0", "0", "0", "0", "0"],
-            ["Ciudades grandes", "0", "0", "0", "0", "0"],
-            ["1", "0", "0", "0", "0", "0"],
-            ["2", "1", "0", "0", "0", "1"],
-            ["3", "5", "0", "0", "0", "5"],
-            ["4", "4", "0", "0", "0", "4"],
-            ["5", "8", "1", "0", "0", "9"],
-            ["Total", "18", "1", "0", "0", "19"]
+            ["Tipología", "% Área de protección ambiental y ecosistemas estratégicos", "", "", "", "", "Total"],
+            ["", "0", "0,1% - 30%", "31% - 50%", "51% - 70%", "71% - 100%", ""],
         ]
+
+        tipologias = [
+            ("Bogotá", "Bogotá"),
+            ("Ciudades grandes", "Ciudades grandes"),
+            ("1", 1),
+            ("2", 2),
+            ("3", 3),
+            ("4", 4),
+            ("5", 5),
+        ]
+
+        rangos = [
+            "0",
+            "0,1% - 30%",
+            "31% - 50%",
+            "51% - 70%",
+            "71% - 100%"
+        ]
+
+        totales_columnas = [0]*len(rangos)
+        total_general = 0
+
+        for label, t in tipologias:
+
+            subset_tipologia = data[data["Tipología_2026_CortesArcMap"] == t]
+
+            fila = [label]
+            total_fila = 0
+
+            for i, r in enumerate(rangos):
+
+                col = subset_tipologia["Rangos_AA_V2026"].astype(str).str.strip()
+
+                if r == "0":
+                    count = (col == "0").sum()
+                else:
+                    count = (col == r).sum()
+
+                fila.append(str(count))
+
+                totales_columnas[i] += count
+                total_fila += count
+
+            fila.append(str(total_fila))
+            total_general += total_fila
+
+            protected_areas_data.append(fila)
+
+        fila_total = ["Total"]
+
+        for val in totales_columnas:
+            fila_total.append(str(val))
+
+        fila_total.append(str(total_general))
+
+        protected_areas_data.append(fila_total)
         
-        protected_areas_table = Table(protected_areas_data, colWidths=[2.5*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm])
+        protected_areas_table = Table(protected_areas_data, colWidths=[2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm])
         protected_areas_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 1), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 1), colors.white),
@@ -757,10 +1013,10 @@ class PdfGenerator:
             ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('SPAN', (0, 0), (0, 1)),
-            ('SPAN', (1, 0), (4, 0)),
-            ('SPAN', (5, 0), (5, 1)),
+            ('SPAN', (1, 0), (5, 0)),
+            ('SPAN', (6, 0), (6, 1)),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('LINEBELOW', (1, 0), (4, 0), 2, colors.black),
+            ('LINEBELOW', (1, 0), (5, 0), 2, colors.black),
         ]))
         
         elements.append(protected_areas_table)
@@ -787,18 +1043,68 @@ class PdfGenerator:
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
+        #Table 5
         ethnic_territories_data = [
             ["Tipología", "% Área de Territorios Étnicos", "", "", "", "", "Total"],
-            ["", "0%", "0,01% - 30%", "31% - 50%", "51% - 70%", "71% - 100%", ""],
-            ["Bogotá", "0", "0", "0", "0", "0", "0"],
-            ["Ciudades grandes", "0", "0", "0", "0", "0", "0"],
-            ["1", "0", "0", "0", "0", "0", "0"],
-            ["2", "0", "1", "0", "0", "0", "1"],
-            ["3", "4", "1", "0", "0", "0", "5"],
-            ["4", "2", "2", "0", "0", "0", "4"],
-            ["5", "6", "3", "0", "0", "0", "9"],
-            ["Total", "12", "7", "0", "0", "0", "19"]
+            ["", "0%", "0,1% - 30%", "31% - 50%", "51% - 70%", "71% - 100%", ""],
         ]
+
+        tipologias = [
+            ("Bogotá", "Bogotá"),
+            ("Ciudades grandes", "Ciudades grandes"),
+            ("1", 1),
+            ("2", 2),
+            ("3", 3),
+            ("4", 4),
+            ("5", 5),
+        ]
+
+        rangos = [
+            "0",
+            "0,1% - 30%",
+            "31% - 50%",
+            "51% - 70%",
+            "71% - 100%"
+        ]
+
+        totales_columnas = [0]*len(rangos)
+        total_general = 0
+
+        for label, t in tipologias:
+
+            subset_tipologia = data[data["Tipología_2026_CortesArcMap"] == t]
+
+            fila = [label]
+            total_fila = 0
+
+            col = subset_tipologia["Rangos_ATE_V2026"].astype(str).str.strip()
+
+            for i, r in enumerate(rangos):
+
+                if r == "0":
+                    count = (col == "0").sum()
+                else:
+                    count = (col == r).sum()
+
+                fila.append(str(count))
+
+                totales_columnas[i] += count
+                total_fila += count
+
+            fila.append(str(total_fila))
+            total_general += total_fila
+
+            ethnic_territories_data.append(fila)
+
+
+        fila_total = ["Total"]
+
+        for val in totales_columnas:
+            fila_total.append(str(val))
+
+        fila_total.append(str(total_general))
+
+        ethnic_territories_data.append(fila_total)
         
         ethnic_territories_table = Table(ethnic_territories_data, colWidths=[2.5*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm])
         ethnic_territories_table.setStyle(TableStyle([
@@ -822,20 +1128,7 @@ class PdfGenerator:
         
         
         elements.append(Spacer(1, 0.1 * inch))
-
-        nota1 = ("1 Dentro del registro se incluyen los Parques Naturales Regionales "
-                "y las categorías del Sistema de Áreas de Parques Nacionales con base "
-                "en el Decreto 2811 de 1974 (Artículo 329).")
-
-        nota2 = ("2 Se incluyen todas las categorías de esta fuente de información, a saber: "
-                "Páramos, Humedales RAMSAR, Bosque Seco Tropical, Manglares, Pastos Marinos, "
-                "Arrecifes coralinos, Reservas Forestales de Ley 2 de 1959 (Zona Tipo A), "
-                "Áreas Susceptibles a Procesos de Restauración Ecológica, Áreas de proyectos "
-                "Bosques de Paz orientados a la restauración ambiental y reconciliación de víctimas.")
-
-        elements.append(Paragraph(nota1, self.styles["TableFootnote"]))
-        elements.append(Paragraph(nota2, self.styles["TableFootnote"]))
-        
+       
         
         elements.append(PageBreak())
         # ==================== PAGE 7 ====================
@@ -851,8 +1144,7 @@ class PdfGenerator:
             ["Código DANE", "Departamento", "Municipio", "Tipología 2026"]
         ]
         
-        # Orden personalizado de tipologías
-        # Orden personalizado de tipologías
+        # Personalized sorting to ensure Bogotá and "Ciudades grandes" are at the top
         orden_tipologia = ["Ciudades grandes", 1, 2, 3, 4, 5]
 
         data["Tipologia_orden"] = data["Tipologia_2026R"].astype(str)
@@ -900,48 +1192,56 @@ class PdfGenerator:
         """Add header and footer to each page"""
         canvas.saveState()
         
-        # Calcular posición para el logo (centrado)
-        page_width = 612  # letter width in points (8.5 * 72)
+        # Calculate centered position for the logo
+        page_width = 612  
         logo_width = 120
         logo_x = (page_width - logo_width) / 2
         
-        # Header with logo (centrado) - BAJADO UN POCO PARA QUE NO SE CORTE
         try:
             if os.path.exists(self.logo_path):
-                # Bajé la posición Y de 760 a 750 para dar más espacio arriba
                 canvas.drawImage(self.logo_path, logo_x, 750, width=logo_width, height=35, preserveAspectRatio=True, mask='auto')
             else:
                 print(f"Logo no encontrado en: {self.logo_path}")
         except Exception as e:
             print(f"Error al cargar el logo: {e}")
         
-        # Header line (blue) - centrada
+        # Header line
         line_width = 530
         line_start = (page_width - line_width) / 2
         canvas.setStrokeColor(DNP_BLACK)
         canvas.setLineWidth(2)
-        canvas.line(line_start, 740, line_start + line_width, 740)  # Línea también bajada
-        
-        # Footer line (blue) - centrada
+          
+        # Footer line
         canvas.setStrokeColor(DNP_BLACK)
         canvas.setLineWidth(1)
-        canvas.line(line_start, 80, line_start + line_width, 80)  # Línea del footer más arriba para dar espacio
+        canvas.line(line_start, 80, line_start + line_width, 80)  
         
-        # Footer text - ALINEADO A LA IZQUIERDA
+        # Footer text 
         canvas.setFont("Helvetica", 7)
-        canvas.setFillColor(DNP_GREY)
+        # Footer text
+        canvas.setFillColor(DNP_BLACK)
+
+        # Dirección
+        canvas.setFont("Helvetica-Bold", 7)
+        canvas.drawString(line_start, 65, "Dirección:")
+        canvas.setFont("Helvetica", 7)
+        canvas.drawString(line_start + 35, 65, " Calle 26 # 13 – 19 Bogotá, D.C., Colombia")
+
+        # Conmutador
+        canvas.setFont("Helvetica-Bold", 7)
+        canvas.drawString(line_start, 55, "Conmutador:")
+        canvas.setFont("Helvetica", 7)
+        canvas.drawString(line_start + 45, 55, " 601 3815000")
+
+        # Línea gratuita
+        canvas.setFont("Helvetica-Bold", 7)
+        canvas.drawString(line_start, 45, "Línea gratuita:")
+        canvas.setFont("Helvetica", 7)
+        canvas.drawString(line_start + 50, 45, " PBX 381 5000")
         
-        # Primera línea del footer - alineada a la izquierda en lugar de centrada
-        canvas.drawString(line_start, 65, "Dirección: Calle 26 # 13 – 19 Bogotá, D.C., Colombia")
-        
-        # Segunda línea: Conmutador - alineada a la izquierda
-        canvas.drawString(line_start, 55, "Conmutador: 601 3815000")
-        
-        # Tercera línea: Línea gratuita - alineada a la izquierda
-        canvas.drawString(line_start, 45, "Línea gratuita: PBX 381 5000")
-        
-        # Page number (right side) - alineado a la derecha pero dentro del margen
+        # Page number 
         page_num = getattr(doc, 'page', 1)
         canvas.drawRightString(line_start + line_width, 45, f"Página {page_num}")
         
         canvas.restoreState()
+
