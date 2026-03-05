@@ -13,6 +13,7 @@ def main():
     controller.dataToPdf("CUNDINAMARCA")
     controller.dataToPdf("ANTIOQUIA") 
     controller.dataToPdf("NARIÑO") 
+    controller.dataToPdf("BOLÍVAR") 
      
     #Call to the main view of the program
     #run() 

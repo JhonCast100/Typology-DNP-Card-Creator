@@ -21,7 +21,13 @@ class DataTable:
             "CodDANE_dpto",
             "Tipologia_2026R",
             "IC_2026",
-            "ICPond_2026"
+            "ICPond_2026",
+            "IPM_2018",
+            "NBI_2018",
+            "IRCA_2024",
+            "IICA_2023",
+            "Ingresos_propios_pc_2024",
+            "Rangos_AA_V2026"
         ]
         
         df = pd.read_excel(self.route, 
@@ -41,6 +47,7 @@ class DataTable:
 
         # Filter the DataFrame to keep only the necessary columns
         self.df = df[requiredColumns]
+        
 
         return self.df
         

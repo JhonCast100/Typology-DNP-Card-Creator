@@ -11,9 +11,9 @@ class  DataPdfController:
 
         departmentData = self.df[
             self.df["Departamento"] == departmentName
-        ].copy()  # importante el copy()
+        ].copy()  
 
-        # 🔥 AQUÍ VA LA TRANSFORMACIÓN
+        # Convert the "Municipio" and "Departamento" columns to title case for better presentation in the PDF
         departmentData.loc[:, "Municipio"] = departmentData["Municipio"].str.title()
         departmentData.loc[:, "Departamento"] = departmentData["Departamento"].str.title()
 

@@ -336,7 +336,7 @@ class PdfGenerator:
                         right_cod, right_mun
                     ])
 
-                # Crear tabla
+                # Create Table
                 cod_table = Table(
                     table_data,
                     colWidths=[1.5*cm, 3.5*cm,
@@ -366,7 +366,7 @@ class PdfGenerator:
         elements.append(Paragraph("Tipologías municipales 2026", self.styles["SectionTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
 
-        typology_counts = data["Tipologia_2026R"].value_counts()
+        typology_counts = data["Tipología_2026_CortesArcMap"].value_counts()
 
         analisis_tipologias = {
             1: "Los municipios de esta tipología se caracterizan por tener en promedio los más altos niveles de capacidades fiscales y administrativas, y al mismo tiempo son los municipios mejor conectados y más densos.",
@@ -410,60 +410,101 @@ class PdfGenerator:
 
             elements.append(Paragraph(texto, self.styles["ListText"]))
             elements.append(Spacer(1, 0.05 * inch))
+            
+
         # Typologies results table
-        # Promedio del índice por tipología dentro del departamento
-        typology_means = (
-            data
-            .groupby("Tipologia_2026R")["ICPond_2026"]
-            .mean()
-        )
+        total_municipalities = len(data)
 
         typology_table_data = [
-            ["Tipología", "Núm. municipios y distritos", "Índice de capacidades\nponderado (Promedio)"]
+            ["Tipología",
+            "Núm. municipios y\n distritos",
+            "% municipios y\n distritos",
+            "Índice de capacidades\nponderado (Promedio)"]
         ]
 
-        for t in [1, 2, 3, 4, 5]:
-            cantidad = typology_counts.get(t, 0)
-            promedio = typology_means.get(t, 0)
+        # Filas especiales
+        tipologias = [
+            ("Bogotá", "Bogotá"),
+            ("Ciudades grandes", "Ciudades grandes"),
+            ("1", 1),
+            ("2", 2),
+            ("3", 3),
+            ("4", 4),
+            ("5", 5),
+        ]
+
+        for label, t in tipologias:
+
+            subset = data[data["Tipología_2026_CortesArcMap"] == t]
+
+            cantidad = len(subset)
+
+            if total_municipalities > 0:
+                porcentaje = cantidad / total_municipalities
+            else:
+                porcentaje = 0
 
             if cantidad == 0:
                 promedio_display = "-"
             else:
+                promedio = subset["ICPond_2026"].mean()
                 promedio_display = f"{promedio:.2f}".replace(".", ",")
 
+            porcentaje_display = f"{porcentaje*100:.0f}%"
+
             typology_table_data.append([
-                str(t),
+                str(label),
                 str(cantidad),
+                porcentaje_display,
                 promedio_display
             ])
 
-        # Fila total
+        # Fila Total
         total_mean = data["ICPond_2026"].mean()
 
         typology_table_data.append([
             "Total",
             str(total_municipalities),
+            "100%",
             f"{total_mean:.2f}".replace(".", ",")
         ])
-        
-        typology_table = Table(typology_table_data, colWidths=[4*cm, 5*cm, 6*cm])
+
+        typology_table = Table(
+            typology_table_data,
+            colWidths=[4*cm, 4*cm, 4*cm, 5*cm],
+            repeatRows=1
+        )
+
         typology_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+
             ('FONTSIZE', (0, 0), (-1, -1), 9),
+
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ('TOPPADDING', (0, 0), (-1, 0), 6),
+
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
+
+            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
         ]))
-        
+
         elements.append(typology_table)
         elements.append(Spacer(1, 0.05 * inch))
-        elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
+        elements.append(
+            Paragraph(
+                "Fuente: Elaboración propia con base en información del DNP",
+                self.styles["SourceText"]
+            )
+        )
         elements.append(PageBreak())
         
         # ==================== PAGE 3 ====================
@@ -491,23 +532,85 @@ class PdfGenerator:
         elements.append(Paragraph(socioeconomic_text2, self.styles["NormalText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
+        #Table 2
+        
+        # Reemplazar textos problemáticos
+        # Reemplazar valores problemáticos solo en columnas de texto
+        text_cols = data.select_dtypes(include='object').columns
+        data[text_cols] = data[text_cols].replace(["Sin Información", "-"], pd.NA)
+        pd.set_option('future.no_silent_downcasting', True)
+
+        # Convertir a numérico
+        data["IPM_2018"] = pd.to_numeric(data["IPM_2018"], errors="coerce")
+        data["NBI_2018"] = pd.to_numeric(data["NBI_2018"], errors="coerce")
+        data["IRCA_2024"] = pd.to_numeric(data["IRCA_2024"], errors="coerce")
+        data["IICA_2023"] = pd.to_numeric(data["IICA_2023"], errors="coerce")
+
+        # ================================
+        # FUNCIÓN PROMEDIO POR TIPOLOGÍA
+        # ================================
+
+        def promedio_tipologia(columna, tipologia):
+
+            subset = data[data["Tipología_2026_CortesArcMap"] == tipologia]
+
+            if subset.empty:
+                return "-"
+
+            valor = subset[columna].mean()
+
+            if pd.isna(valor):
+                return "-"
+
+            return f"{valor:.2f}".replace(".", ",")
+
+        
         # Complementary variables table
         elements.append(Paragraph("Tipologías vs. variables complementarias", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
-        
+
+        tipologias = ["Bogotá", "Ciudades grandes", 1, 2, 3, 4, 5]
+
+        def promedio_tipologia(columna, tipologia):
+            subset = data[data["Tipología_2026_CortesArcMap"] == tipologia]
+            if subset.empty:
+                return "-"
+            return f"{subset[columna].mean():.2f}".replace(".", ",")
+
         complementary_table_data = [
-            ["Tipología", "IPM", "NBI", "IRCA", "IICA"],
-            ["Bogotá", "-", "-", "-", "-"],
-            ["Ciudades grandes", "-", "-", "-", "-"],
-            ["1", "-", "-", "-", "-"],
-            ["2", "22,90", "11,53", "0,60", "1,36"],
-            ["3", "28,10", "12,28", "2,56", "7,57"],
-            ["4", "44,23", "26,67", "6,94", "1,06"],
-            ["5", "42,37", "25,93", "8,11", "4,49"],
-            ["Total", "37,98", "21,73", "6,01", "4,42"]
+            ["Tipología", "IPM", "NBI", "IRCA", "IICA"]
         ]
-        
+
+        for t in tipologias:
+            
+            ipm = promedio_tipologia("IPM_2018", t)
+            nbi = promedio_tipologia("NBI_2018", t)
+            irca = promedio_tipologia("IRCA_2024", t)
+            iica = promedio_tipologia("IICA_2023", t)
+
+            complementary_table_data.append([
+                str(t),
+                ipm,
+                nbi,
+                irca,
+                iica
+            ])
+
+        # ---- TOTAL (promedio del departamento completo) ----
+        total_ipm = f"{data['IPM_2018'].mean():.2f}".replace(".", ",")
+        total_nbi = f"{data['NBI_2018'].mean():.2f}".replace(".", ",")
+        total_irca = f"{data['IRCA_2024'].mean():.2f}".replace(".", ",")
+        total_iica = f"{data['IICA_2023'].mean():.2f}".replace(".", ",")
+
+        complementary_table_data.append([
+            "Total",
+            total_ipm,
+            total_nbi,
+            total_irca,
+            total_iica
+        ])
+
         complementary_table = Table(complementary_table_data, colWidths=[3.5*cm, 2.8*cm, 2.8*cm, 2.8*cm, 2.8*cm])
         complementary_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
@@ -519,45 +622,11 @@ class PdfGenerator:
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
         ]))
-        
+
         elements.append(complementary_table)
         elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia con base en la información del DANE y DNP", self.styles["SourceText"]))
         elements.append(Spacer(1, 0.1 * inch))
-        
-        # MDM table
-        elements.append(Paragraph("Tipologías vs. MDM", self.styles["TableTitle"]))
-        elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
-        elements.append(Spacer(1, 0.05 * inch))
-        
-        mdm_table_data = [
-            ["Tipología", "MDM", "MDM\nResultados", "Educación", "Salud", "Servicios", "Seguridad y\nconvivencia"],
-            ["Bogotá", "-", "-", "-", "-", "-", "-"],
-            ["Ciudades grandes", "-", "-", "-", "-", "-", "-"],
-            ["1", "-", "-", "-", "-", "-", "-"],
-            ["2", "72,42", "75,97", "64,00", "96,14", "70,19", "73,54"],
-            ["3", "65,14", "68,89", "55,43", "90,60", "38,89", "90,62"],
-            ["4", "52,28", "61,52", "49,84", "86,88", "28,32", "69,34"],
-            ["5", "57,60", "64,21", "49,29", "88,05", "31,55", "82,70"],
-            ["Total", "59,24", "65,49", "51,80", "88,90", "34,84", "81,49"]
-        ]
-        
-        mdm_table = Table(mdm_table_data, colWidths=[2.8*cm, 2.2*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 3*cm])
-        mdm_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-        ]))
-        
-        elements.append(mdm_table)
-        elements.append(Spacer(1, 0.05 * inch))
-        elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
-        elements.append(PageBreak())
         
         # ==================== PAGE 4 ====================
         
@@ -573,35 +642,78 @@ class PdfGenerator:
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
+        #Table 3
         income_table_data = [
-            ["Tipología", "Ingresos tributarios"],
-            ["Bogotá", "-"],
-            ["Ciudades grandes", "-"],
-            ["1", "-"],
-            ["2", "168.236"],
-            ["3", "34.324"],
-            ["4", "4.583"],
-            ["5", "8.037"],
-            ["Total", "22.659"]
+            ["Tipología", "Ingresos tributarios pér capita"]
         ]
+
+        tipologias = [
+            ("Bogotá", "Bogotá"),
+            ("Ciudades grandes", "Ciudades grandes"),
+            ("1", 1),
+            ("2", 2),
+            ("3", 3),
+            ("4", 4),
+            ("5", 5),
+        ]
+
+        for label, t in tipologias:
+
+            subset = data[data["Tipología_2026_CortesArcMap"] == t]
+
+            cantidad = len(subset)
+
+            if cantidad == 0:
+                ingreso_display = "-"
+            else:
+                promedio = subset["Ingresos_propios_pc_2024"].mean() * 1000000
+                ingreso_display = f"{promedio:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+            income_table_data.append([
+                str(label),
+                ingreso_display
+            ])
+
+        # Fila Total
+        if len(data) == 0:
+            total_display = "-"
+        else:
+            total_mean = data["Ingresos_propios_pc_2024"].mean() * 1000000
+            total_display = f"{total_mean:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+        income_table_data.append([
+            "Total",
+            total_display
+        ])
         
         income_table = Table(income_table_data, colWidths=[5*cm, 6*cm])
+
         income_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
+
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
+
+            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
         ]))
-        
+
         elements.append(income_table)
         elements.append(Spacer(1, 0.05 * inch))
-        elements.append(Paragraph("Fuente: Elaboración propia con base en las operaciones efectivas de caja calculadas por el DNP", 
-                                  self.styles["SourceText"]))
+        elements.append(
+            Paragraph(
+                "Fuente: Elaboración propia con base en las operaciones efectivas de caja calculadas por el DNP",
+                self.styles["SourceText"]
+            )
+        )
         elements.append(Spacer(1, 0.1 * inch))
+        
         
         # Environmental areas section
         elements.append(Paragraph("Áreas ambientales y territorios étnicos", self.styles["SectionTitle"]))
@@ -615,11 +727,14 @@ class PdfGenerator:
         elements.append(Paragraph(environmental_text, self.styles["NormalText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
+        
         # Protected areas table
         elements.append(Paragraph("Tipologías vs. Rango de % de áreas protegidas y ecosistemas estratégicos", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
+        
+        #Table 4
         protected_areas_data = [
             ["Tipología", "% Área de protección ambiental y ecosistemas estratégicos", "", "", "", "Total"],
             ["", "0% - 30%", "31% - 50%", "51% - 70%", "71% - 100%", ""],
