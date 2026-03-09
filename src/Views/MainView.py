@@ -1,6 +1,10 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 
+from Controllers.DataPdfController import DataPdfController
+from Models import PdfGenerator
+from Models.DataTable import DataTable
+
 def run():
     # Create main window
     window = tk.Tk()
@@ -48,7 +52,20 @@ def run():
 
     # Button to generate cards
     def generate():
-        print("Generar fichas...")  # luego aquí pondre la lógica real
+        #Import data from Excel file
+        data = DataTable("../Data/ExcelFiles/MatrizTipologias.xlsx")  
+        df = data.getDataFrame() 
+        
+        #Create an instance of the DataPdfController with the imported data
+        controller = DataPdfController(df)
+        """
+        for department in df["Departamento"].dropna().unique():
+            controller.dataToPdf(department)
+        """
+        controller.dataToPdf("CUNDINAMARCA")
+        controller.dataToPdf("ANTIOQUIA") 
+        controller.dataToPdf("NARIÑO") 
+        controller.dataToPdf("BOLÍVAR") 
 
     generate_button = tk.Button(
         container,
@@ -75,7 +92,7 @@ def run():
     )
     watermark.pack(side="bottom", pady=10)
 
-    # Ejecutar app
+    # Execute the main loop
     window.mainloop()
     
 if __name__ == "__main__":

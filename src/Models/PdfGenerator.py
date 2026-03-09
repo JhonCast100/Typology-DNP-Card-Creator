@@ -130,19 +130,19 @@ class PdfGenerator:
             fontName='Helvetica'
         ))
         
-        # List text
+        # List text - CORREGIDO
         self.styles.add(ParagraphStyle(
             name='ListText',
             parent=self.styles['Normal'],
             fontSize=9,
             alignment=TA_JUSTIFY,   
-            spaceAfter=2,
-            leading=12,
+            spaceAfter=2,          # CAMBIADO: era 4, ahora 2 para menos espacio
+            leading=11,            # CAMBIADO: era 12, ahora 11 para que esté más compacto
             textColor=colors.black,
             fontName='Helvetica',
-
-            leftIndent=18,        
-            firstLineIndent=-12
+            leftIndent=12,         # CAMBIADO: era 20, ahora 12
+            firstLineIndent=-12,   # Esto hace que la viñeta sobresalga
+            bulletIndent=0         # CAMBIADO: para que la viñeta esté al inicio
         ))
         
         # Table footnote style
@@ -247,12 +247,12 @@ class PdfGenerator:
         total_municipalities = len(data)
 
         # Count of municipalities by typology
-        typology_counts = data["Tipologia_2026R"].value_counts()
+        typology_counts = data["Tipología_2026_CortesArcMap"].value_counts()
 
         # Mean ICPond by typology
         typology_means = (
             data
-            .groupby("Tipologia_2026R")["ICPond_2026"]
+            .groupby("Tipología_2026_CortesArcMap")["ICPond_2026"]
             .mean()
         )
         
@@ -427,62 +427,53 @@ class PdfGenerator:
         }
 
         #First bullet point with total municipalities
+        # First bullet point with total municipalities
         elements.append(Paragraph(
-            f"• El departamento de <b>{departmentName}</b> está conformado por <b>{total_municipalities}</b> municipios.",
-            self.styles["ListText"]
+            f"El departamento de <b>{departmentName}</b> está conformado por <b>{total_municipalities}</b> municipios.",
+            self.styles["ListText"],
+            bulletText='•'
         ))
-        elements.append(Spacer(1, 0.05 * inch))
-        
+        elements.append(Spacer(1, 0.02 * inch))  # CAMBIADO: era 0.05, ahora 0.02
+
         ciudades_grandes = data[data["Tipología_2026_CortesArcMap"] == "Ciudades grandes"]
 
         if len(ciudades_grandes) == 0:
-
             texto_ciudades = (
-                "• Ningún municipio de este departamento pertenece a las Tipologías de "
-                "<b>Ciudades Grandes</b> - Sistema de Ciudades."
+                "Ningún municipio de este departamento pertenece a las Tipologías de "
+                "<b>Ciudades Grandes</b>."
             )
-
         else:
-
             nombres = ", ".join(ciudades_grandes["Municipio"].tolist())
-
             if len(ciudades_grandes) == 1:
-                texto_ciudades = (
-                    f"• {nombres} está dentro de la Tipología de <b>Ciudades Grandes</b>."
-                )
+                texto_ciudades = f"{nombres} está dentro de la Tipología de <b>Ciudades Grandes</b>."
             else:
-                texto_ciudades = (
-                    f"• {nombres} están dentro de la Tipología de <b>Ciudades Grandes</b>."
-                )
+                texto_ciudades = f"{nombres} están dentro de la Tipología de <b>Ciudades Grandes</b>."
 
-        elements.append(Paragraph(texto_ciudades, self.styles["ListText"]))
-        elements.append(Spacer(1, 0.05 * inch))
+        elements.append(Paragraph(texto_ciudades, self.styles["ListText"], bulletText='•'))
+        elements.append(Spacer(1, 0.02 * inch))  # CAMBIADO: era 0.05, ahora 0.02
 
         for t in [1, 2, 3, 4, 5]:
-
             cantidad = typology_counts.get(t, 0)
 
             if cantidad == 0:
                 texto = (
-                    f"• En la <b>Tipología {t}</b> no se encuentra ningún municipio de este departamento. "
+                    f"En la <b>Tipología {t}</b> no se encuentra ningún municipio de este departamento. "
                     f"{analisis_tipologias[t]}"
                 )
-
             elif cantidad == 1:
-                municipio = data.loc[data["Tipologia_2026R"] == t, "Municipio"].iloc[0]
+                municipio = data.loc[data["Tipología_2026_CortesArcMap"] == t, "Municipio"].iloc[0]
                 texto = (
-                    f"• En la <b>Tipología {t}</b> se encuentra <b>1 municipio</b>, <b>{municipio}</b>. "
+                    f"En la <b>Tipología {t}</b> se encuentra <b>1 municipio</b>, <b>{municipio}</b>. "
                     f"{analisis_tipologias[t]}"
                 )
-
             else:
                 texto = (
-                    f"• En la <b>Tipología {t}</b> se encuentran <b>{cantidad} municipios</b>. "
+                    f"En la <b>Tipología {t}</b> se encuentran <b>{cantidad} municipios</b>. "
                     f"{analisis_tipologias[t]}"
                 )
 
-            elements.append(Paragraph(texto, self.styles["ListText"]))
-            elements.append(Spacer(1, 0.05 * inch))
+            elements.append(Paragraph(texto, self.styles["ListText"], bulletText='•'))
+            elements.append(Spacer(1, 0.02 * inch))  # CAMBIADO: era 0.05, ahora 0.02
             
 
         #Table 1
@@ -716,7 +707,7 @@ class PdfGenerator:
 
         
         # Complementary variables table
-        elements.append(Paragraph("Tipologías vs. variables complementarias", self.styles["TableTitle"]))
+        elements.append(Paragraph("Tipologías y variables complementarias", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
 
         tipologias = ["Bogotá", "Ciudades grandes", 1, 2, 3, 4, 5]
@@ -728,7 +719,7 @@ class PdfGenerator:
             return f"{subset[columna].mean():.2f}".replace(".", ",")
 
         complementary_table_data = [
-            ["Tipología", "IPM", "NBI", "IRCA", "IICA"]
+            ["Tipología", "IPM 2018", "NBI 2018", "IRCA 2024", "IICA 2023"]
         ]
 
         for t in tipologias:
@@ -823,11 +814,11 @@ class PdfGenerator:
         elements.append(Spacer(1, 0.1 * inch))
         
         #Table 2.1 - MDM table
-        elements.append(Paragraph("Tipologías vs. MDM 2024", self.styles["TableTitle"]))
+        elements.append(Paragraph("Tipologías y MDM 2024", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         
         mdm_data = [
-            ["Tipología", "MDM", "MDM Resultados", "Educación", "Salud", "Servicios", "Seguridad y\n convivencia"]
+            ["Tipología", "MDM", "MDM\n Resultados", "Educación", "Salud", "Servicios", "Seguridad y\n convivencia"]
         ]
 
         tipologias = [
@@ -933,7 +924,7 @@ class PdfGenerator:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
 
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
 
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('TOPPADDING', (0,0), (-1,-1), 2),
@@ -972,17 +963,17 @@ class PdfGenerator:
         elements.append(Paragraph("Ingresos", self.styles["SectionTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
-        income_text = "A medida que se avanza en las tipologías los ingresos propios en promedio tienden a reducirse."
+        income_text = "A medida que se avanza en las tipologías los ingresos tributarios per cápita en promedio tienden a reducirse."
         elements.append(Paragraph(income_text, self.styles["NormalText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
-        elements.append(Paragraph("Ingresos propios 2024. Cifras en pesos", self.styles["TableTitle"]))
+        elements.append(Paragraph("Ingresos per cápita 2024. Cifras en pesos", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         
         
         # Table 3
         income_table_data = [
-            ["Tipología", "Ingresos tributarios\n pér capita", "Ingresos totales\n pér capita"]
+            ["Tipología", "Ingresos tributarios\n per cápita", "Ingresos totales\n per cápita"]
         ]
 
         valores_tributarios = []
@@ -1028,8 +1019,6 @@ class PdfGenerator:
             ])
 
 
-        # TOTAL
-
         if len(data) == 0:
             total_tributario_display = "-"
             total_total_display = "-"
@@ -1052,9 +1041,6 @@ class PdfGenerator:
             income_table_data,
             colWidths=[4*cm, 4*cm, 4*cm]
         )
-
-
-        # RANKING DE COLORES
 
         column_colors = []
 
@@ -1124,15 +1110,15 @@ class PdfGenerator:
         
         environmental_text = """
         La variable porcentaje de "Áreas protegidas y ecosistemas estratégicos" resulta del cruce de información 
-        del Registro Único Nacional de Áreas Protegidas (RUNAP)<super>1</super> y del Registro de Ecosistemas y Áreas 
-        Ambientales (REAA)<super>2</super>, en relación con el total del área municipal.
+        del Registro Único Nacional de Áreas Protegidas (RUNAP y del Registro de Ecosistemas y Áreas 
+        Ambientales (REAA), en relación con el total del área municipal.
         """
         elements.append(Paragraph(environmental_text, self.styles["NormalText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
         
         # Protected areas table
-        elements.append(Paragraph("Tipologías vs. Rango de % de áreas protegidas y ecosistemas estratégicos", self.styles["TableTitle"]))
+        elements.append(Paragraph("Tipologías y Rango de porcentaje de áreas protegidas y ecosistemas estratégicos", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         
         
@@ -1198,14 +1184,14 @@ class PdfGenerator:
 
         protected_areas_data.append(fila_total)
         
-        protected_areas_table = Table(protected_areas_data, colWidths=[2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm])
+        protected_areas_table = Table(protected_areas_data, colWidths=[3.5*cm, 2*cm, 2*cm, 2*cm, 2*cm, 2*cm, 2*cm])
         protected_areas_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 1), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 1), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('SPAN', (0, 0), (0, 1)),
             ('SPAN', (1, 0), (5, 0)),
             ('SPAN', (6, 0), (6, 1)),
@@ -1218,6 +1204,8 @@ class PdfGenerator:
             
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
             ('FONTNAME', (-1, 0), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey), 
+            ('BACKGROUND', (-1, 2), (-1, -1), colors.lightgrey)
             
         ]))
         
@@ -1240,7 +1228,7 @@ class PdfGenerator:
         elements.append(Spacer(1, 0.1 * inch))
         
         # Ethnic territories table
-        elements.append(Paragraph("Tipologías vs. Rango de % de área de territorios étnicos", self.styles["TableTitle"]))
+        elements.append(Paragraph("Tipologías y Rango de porcentaje de área de territorios étnicos", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         
         #Table 5
@@ -1306,14 +1294,14 @@ class PdfGenerator:
 
         ethnic_territories_data.append(fila_total)
         
-        ethnic_territories_table = Table(ethnic_territories_data, colWidths=[2.5*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm])
+        ethnic_territories_table = Table(ethnic_territories_data, colWidths=[3.5*cm, 2*cm, 2*cm, 2*cm, 2*cm, 2*cm, 2*cm])
         ethnic_territories_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 1), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 1), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('SPAN', (0, 0), (0, 1)),
             ('SPAN', (1, 0), (5, 0)),
             ('SPAN', (6, 0), (6, 1)),
@@ -1325,7 +1313,9 @@ class PdfGenerator:
             ('RIGHTPADDING', (0,0), (-1,-1), 3),
             
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (-1, 0), (-1, -1), 'Helvetica-Bold')
+            ('FONTNAME', (-1, 0), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey), 
+            ('BACKGROUND', (-1, 2), (-1, -1), colors.lightgrey)
         ]))
         
         elements.append(ethnic_territories_table)
@@ -1341,8 +1331,16 @@ class PdfGenerator:
         
         # Annex
         elements.append(PageBreak())
-        elements.append(Paragraph("Anexo", self.styles["SectionTitle"]))
-        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Paragraph("Anexo", self.styles["SectionTitleMain"]))
+        elements.append(
+            HRFlowable(
+                width="100%",
+                thickness=0.6,
+                color=DNP_BLACK,
+                spaceBefore=2,
+                spaceAfter=6
+            )
+        )
         elements.append(Paragraph("Tipologías a nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["SubTitle"]))
         elements.append(Spacer(1, 0.1 * inch))
         
@@ -1354,7 +1352,7 @@ class PdfGenerator:
         # Personalized sorting to ensure Bogotá and "Ciudades grandes" are at the top
         orden_tipologia = ["Ciudades grandes", 1, 2, 3, 4, 5]
 
-        data["Tipologia_orden"] = data["Tipologia_2026R"].astype(str)
+        data["Tipologia_orden"] = data["Tipología_2026_CortesArcMap"].astype(str)
 
         data["Tipologia_orden"] = pd.Categorical(
             data["Tipologia_orden"],
@@ -1369,7 +1367,7 @@ class PdfGenerator:
                 str(row["CodDANE_txt"]),
                 row["Departamento"],
                 row["Municipio"],
-                str(row["Tipologia_2026R"])
+                str(row["Tipología_2026_CortesArcMap"])
             ])
         
         annex_table = Table(
