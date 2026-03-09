@@ -401,6 +401,13 @@ class PdfGenerator:
         else:
             elements.append(Paragraph("<i>Mapa no disponible</i>", self.styles["NormalText"]))
         
+        if departmentName.strip().upper() == "CHOCÓ":
+            nota_choco = """
+            No incluye el Municipio Nuevo Belén de Bajirá creado a partir del decreto 0284 del 26 de diciembre de 2023 y de la Ordenanza No. 180 del 27 de junio de 2023, segregado del municipio de Riosucio. Esto teniendo en cuenta que a la fecha de expedición de las tipologías para la vigencia 2025 no se contaba con información final del proceso de deslinde respectivo, la cartografía oficial con esta nueva entidad territorial, ni las actualizaciones del Marco Geoestadístico Nacional -MGN.
+            """
+
+            elements.append(Spacer(1, 0.08 * inch))
+            elements.append(Paragraph(nota_choco, self.styles["SourceText"]))
         
         # ==================== PAGE 2 ====================
 
@@ -551,8 +558,8 @@ class PdfGenerator:
         # obtener valores válidos
         valid_values = [v for v in promedios_tipologias if v is not None]
 
-        # ordenar de mayor a menor
-        sorted_vals = sorted(valid_values, reverse=True)
+        # ordenar de menor a mayor (peor a mejor)
+        sorted_vals = sorted(valid_values)
 
         row_colors = {}
 
@@ -561,9 +568,12 @@ class PdfGenerator:
                 continue
 
             rank = sorted_vals.index(val)
+            
+            # Invertir el índice del color para pintar de peor a mejor
+            color_index = len(self.ranking_colors) - 1 - rank
 
-            if rank < len(self.ranking_colors):
-                row_colors[i+1] =   self.ranking_colors[rank]
+            if color_index >= 0 and color_index < len(self.ranking_colors):
+                row_colors[i+1] = self.ranking_colors[color_index]
         
 
         table_style = TableStyle([
@@ -671,8 +681,8 @@ class PdfGenerator:
             if not valid:
                 return
 
-            # menor = mejor
-            sorted_vals = sorted(valid)
+            # mayor = peor, así que ordenar de mayor a menor
+            sorted_vals = sorted(valid, reverse=True)
 
             for i, val in enumerate(valores):
 
@@ -680,13 +690,16 @@ class PdfGenerator:
                     continue
 
                 rank = sorted_vals.index(val)
+                
+                # Invertir el índice del color para pintar de peor a mejor
+                color_index = len(self.ranking_colors) - 1 - rank
 
-                if rank < len(self.ranking_colors):
+                if color_index >= 0 and color_index < len(self.ranking_colors):
                     table_style.add(
                         'BACKGROUND',
                         (col_index, i+1),
                         (col_index, i+1),
-                        self.ranking_colors[rank]
+                        self.ranking_colors[color_index]
                     )
         
         
@@ -853,7 +866,7 @@ class PdfGenerator:
 
                 for col in columnas:
 
-                    promedio = subset[col].mean()
+                    promedio = pd.to_numeric(subset[col], errors="coerce").mean()
 
                     if pd.isna(promedio):
                         fila.append("-")
@@ -868,7 +881,7 @@ class PdfGenerator:
 
         for col in columnas:
 
-            promedio = data[col].mean()
+            promedio = pd.to_numeric(data[col], errors="coerce").mean()
 
             if pd.isna(promedio):
                 fila_total.append("-")
@@ -892,7 +905,7 @@ class PdfGenerator:
                 if len(subset) == 0:
                     column_values[col].append(None)
                 else:
-                    column_values[col].append(subset[col].mean())
+                    column_values[col].append(pd.to_numeric(subset[col], errors="coerce").mean())
                     
         column_cell_colors = []
 
@@ -902,7 +915,8 @@ class PdfGenerator:
 
             valid_values = [v for v in values if v is not None]
 
-            sorted_vals = sorted(valid_values, reverse=True)
+            # ordenar de menor a mayor (peor a mejor)
+            sorted_vals = sorted(valid_values)
 
             for row_index, val in enumerate(values):
 
@@ -910,10 +924,13 @@ class PdfGenerator:
                     continue
 
                 rank = sorted_vals.index(val)
+                
+                # Invertir el índice del color para pintar de peor a mejor
+                color_index = len(self.ranking_colors) - 1 - rank
 
-                if rank < len(self.ranking_colors):
+                if color_index >= 0 and color_index < len(self.ranking_colors):
                     column_cell_colors.append(
-                        (col_index + 1, row_index + 1, self.ranking_colors[rank])
+                        (col_index + 1, row_index + 1, self.ranking_colors[color_index])
                     )
             
         table_style = TableStyle([
@@ -1048,7 +1065,8 @@ class PdfGenerator:
 
             valid_values = [v for v in valores if v is not None]
 
-            sorted_vals = sorted(valid_values, reverse=True)
+            # ordenar de menor a mayor (peor a mejor)
+            sorted_vals = sorted(valid_values)
 
             for row_index, val in enumerate(valores):
 
@@ -1056,10 +1074,13 @@ class PdfGenerator:
                     continue
 
                 rank = sorted_vals.index(val)
+                
+                # Invertir el índice del color para pintar de peor a mejor
+                color_index = len(self.ranking_colors) - 1 - rank
 
-                if rank < len(self.ranking_colors):
+                if color_index >= 0 and color_index < len(self.ranking_colors):
                     column_colors.append(
-                        (col_index + 1, row_index + 1, self.ranking_colors[rank])
+                        (col_index + 1, row_index + 1, self.ranking_colors[color_index])
                     )
 
 
@@ -1453,4 +1474,3 @@ class PdfGenerator:
         canvas.drawRightString(line_start + line_width, 45, f"Página {page_num}")
         
         canvas.restoreState()
-

@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 from PIL import Image, ImageTk
 
 from Controllers.DataPdfController import DataPdfController
@@ -29,6 +30,7 @@ def run():
     title.pack(pady=(30, 20))
 
     # Instructions
+    # Instructions
     instructions_text = (
         "Para utilizar el programa:\n\n"
         "1. Coloca el Excel de Tipologías en la carpeta \\Data\\ExcelFiles.\n"
@@ -36,7 +38,10 @@ def run():
         "2. El Excel debe contener la hoja llamada \"Municipios\",\n"
         "   dentro de la cual deben estar los datos a cargar.\n\n"
         "3. Coloca las imágenes de los mapas en la carpeta \\Data\\Maps.\n"
-        "   Cada imagen debe tener el nombre del departamento."
+        "   Cada imagen debe tener el nombre del departamento.\n"
+        "   - Si el mapa tiene los nombres de los municipios, el archivo debe terminar en _1.\n"
+        "   - Si el mapa no tiene los nombres de los municipios, el archivo debe terminar en _0.\n\n"
+        "4. Luego de la ventana de resultados, podrás encontrar las fichas generadas en la carpeta \\Output."
     )
 
     instructions = tk.Label(
@@ -52,20 +57,35 @@ def run():
 
     # Button to generate cards
     def generate():
-        #Import data from Excel file
-        data = DataTable("../Data/ExcelFiles/MatrizTipologias.xlsx")  
-        df = data.getDataFrame() 
+        try:
+            # Import data from Excel file
+            data = DataTable("../Data/ExcelFiles/MatrizTipologias.xlsx")
+            df = data.getDataFrame()
+
+            # Create controller
+            controller = DataPdfController(df)
+
+            for department in df["Departamento"].dropna().unique():
+                controller.dataToPdf(department)
+
+            print("PDFs generados exitosamente.")
+
+            # Success alert
+            messagebox.showinfo(
+                "Proceso finalizado",
+                "Las fichas de tipologías se generaron exitosamente."
+            )
+
+        except Exception as e:
+
+            print("Ocurrió un error:", e)
+
+            #Err alert
+            messagebox.showerror(
+                "Error en la generación",
+                "Ocurrió un error al generar las fichas. Por favor revise la información."
+            )
         
-        #Create an instance of the DataPdfController with the imported data
-        controller = DataPdfController(df)
-        """
-        for department in df["Departamento"].dropna().unique():
-            controller.dataToPdf(department)
-        """
-        controller.dataToPdf("CUNDINAMARCA")
-        controller.dataToPdf("ANTIOQUIA") 
-        controller.dataToPdf("NARIÑO") 
-        controller.dataToPdf("BOLÍVAR") 
 
     generate_button = tk.Button(
         container,
