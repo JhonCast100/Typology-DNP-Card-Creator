@@ -809,7 +809,42 @@ class PdfGenerator:
         
         mdm_table = Table(mdm_data, colWidths=[3*cm, 2.2*cm, 2.6*cm, 2.2*cm, 2.2*cm, 2.2*cm, 3*cm])
 
-        mdm_table.setStyle(TableStyle([
+        # guardar promedios por columna para ranking
+        column_values = {col: [] for col in columnas}
+
+        for label, t in tipologias:
+
+            subset = data[data["Tipología_2026_CortesArcMap"] == t]
+
+            for col in columnas:
+                if len(subset) == 0:
+                    column_values[col].append(None)
+                else:
+                    column_values[col].append(subset[col].mean())
+                    
+        column_cell_colors = []
+
+        for col_index, col in enumerate(columnas):
+
+            values = column_values[col]
+
+            valid_values = [v for v in values if v is not None]
+
+            sorted_vals = sorted(valid_values, reverse=True)
+
+            for row_index, val in enumerate(values):
+
+                if val is None:
+                    continue
+
+                rank = sorted_vals.index(val)
+
+                if rank < len(self.ranking_colors):
+                    column_cell_colors.append(
+                        (col_index + 1, row_index + 1, self.ranking_colors[rank])
+                    )
+            
+        table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
 
@@ -823,8 +858,18 @@ class PdfGenerator:
 
             ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-        ]))
-        
+        ])
+
+        # aplicar colores ranking
+        for col, row, color in column_cell_colors:
+            table_style.add('BACKGROUND', (col, row), (col, row), color)
+
+        # fila total
+        table_style.add('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey)
+        table_style.add('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+
+        mdm_table.setStyle(table_style)
+                
         elements.append(mdm_table)
         elements.append(Spacer(1, 0.05 * inch))
         elements.append(
@@ -850,10 +895,14 @@ class PdfGenerator:
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
-        #Table 3
+        
+        # Table 3
         income_table_data = [
-            ["Tipología", "Ingresos tributarios pér capita"]
+            ["Tipología", "Ingresos tributarios\n pér capita", "Ingresos totales\n pér capita"]
         ]
+
+        valores_tributarios = []
+        valores_totales = []
 
         tipologias = [
             ("Bogotá", "Bogotá"),
@@ -869,34 +918,83 @@ class PdfGenerator:
 
             subset = data[data["Tipología_2026_CortesArcMap"] == t]
 
-            cantidad = len(subset)
+            if len(subset) == 0:
 
-            if cantidad == 0:
                 ingreso_display = "-"
+                total_display = "-"
+
+                valores_tributarios.append(None)
+                valores_totales.append(None)
+
             else:
-                promedio = subset["Ingresos_propios_pc_2024"].mean() * 1000000
-                ingreso_display = f"{promedio:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+                ingreso = subset["Ingresos_propios_pc_2024"].mean() * 1000000
+                total = subset["Ingresos_totales_pc_2024"].mean() * 1000000
+
+                ingreso_display = f"{ingreso:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                total_display = f"{total:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+                valores_tributarios.append(ingreso)
+                valores_totales.append(total)
 
             income_table_data.append([
                 str(label),
-                ingreso_display
+                ingreso_display,
+                total_display
             ])
 
-        # Total row
+
+        # TOTAL
+
         if len(data) == 0:
-            total_display = "-"
+            total_tributario_display = "-"
+            total_total_display = "-"
         else:
-            total_mean = data["Ingresos_propios_pc_2024"].mean() * 1000000
-            total_display = f"{total_mean:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+            total_tributario = data["Ingresos_propios_pc_2024"].mean() * 1000000
+            total_total = data["Ingresos_totales_pc_2024"].mean() * 1000000
+
+            total_tributario_display = f"{total_tributario:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            total_total_display = f"{total_total:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
         income_table_data.append([
             "Total",
-            total_display
+            total_tributario_display,
+            total_total_display
         ])
-        
-        income_table = Table(income_table_data, colWidths=[5*cm, 6*cm])
 
-        income_table.setStyle(TableStyle([
+
+        income_table = Table(
+            income_table_data,
+            colWidths=[4*cm, 4*cm, 4*cm]
+        )
+
+
+        # RANKING DE COLORES
+
+        column_colors = []
+
+        for col_index, valores in enumerate([valores_tributarios, valores_totales]):
+
+            valid_values = [v for v in valores if v is not None]
+
+            sorted_vals = sorted(valid_values, reverse=True)
+
+            for row_index, val in enumerate(valores):
+
+                if val is None:
+                    continue
+
+                rank = sorted_vals.index(val)
+
+                if rank < len(self.ranking_colors):
+                    column_colors.append(
+                        (col_index + 1, row_index + 1, self.ranking_colors[rank])
+                    )
+
+
+        table_style = TableStyle([
+
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
 
@@ -910,7 +1008,17 @@ class PdfGenerator:
 
             ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-        ]))
+        ])
+
+
+        for col, row, color in column_colors:
+            table_style.add('BACKGROUND', (col, row), (col, row), color)
+
+
+        table_style.add('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey)
+        table_style.add('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+
+        income_table.setStyle(table_style)
 
         elements.append(income_table)
         elements.append(Spacer(1, 0.05 * inch))

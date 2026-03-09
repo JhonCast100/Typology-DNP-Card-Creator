@@ -34,7 +34,8 @@ class DataTable:
             "MDM2024_educacion",
             "MDM2024_salud",
             "MDM2024_servicios",
-            "MDM2024_seguridad"
+            "MDM2024_seguridad",
+            "Ingresos_totales_pc_2024"
             
         ]
         
