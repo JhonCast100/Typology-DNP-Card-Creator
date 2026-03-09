@@ -8,6 +8,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
+from reportlab.platypus import HRFlowable
 
 
 import pandas as pd
@@ -46,6 +47,15 @@ class PdfGenerator:
     
     def _setup_styles(self):
         """Configure custom styles exactly like the original PDF"""
+        #Subtitle line
+        self.styles.add(ParagraphStyle(
+            name="SubtitleLine",
+            parent=self.styles["Heading2"],
+            borderWidth=0.3,
+            borderColor=colors.black,
+            borderPadding=3,
+            borderSides='bottom'
+        ))
         
         # Main title
         self.styles.add(ParagraphStyle(
@@ -63,7 +73,7 @@ class PdfGenerator:
         self.styles.add(ParagraphStyle(
             name='DeptTitle',
             parent=self.styles['Heading1'],
-            fontSize=16,
+            fontSize=12,
             alignment=TA_CENTER,
             spaceAfter=8,
             leading=18,
@@ -74,6 +84,18 @@ class PdfGenerator:
         # Section title
         self.styles.add(ParagraphStyle(
             name='SectionTitle',
+            parent=self.styles['Heading2'],
+            fontSize=12,
+            alignment=TA_LEFT,
+            spaceAfter=6,
+            leading=14,
+            textColor=DNP_BLACK,
+            fontName='Helvetica-Bold',
+            leftIndent=0
+        ))
+        # Section title Main
+        self.styles.add(ParagraphStyle(
+            name='SectionTitleMain',
             parent=self.styles['Heading2'],
             fontSize=12,
             alignment=TA_LEFT,
@@ -114,7 +136,7 @@ class PdfGenerator:
             parent=self.styles['Normal'],
             fontSize=9,
             alignment=TA_JUSTIFY,   
-            spaceAfter=4,
+            spaceAfter=2,
             leading=12,
             textColor=colors.black,
             fontName='Helvetica',
@@ -142,7 +164,8 @@ class PdfGenerator:
             parent=self.styles['Normal'],
             fontSize=9,
             alignment=TA_CENTER,  
-            spaceAfter=2,
+            spaceAfter=0,
+            spaceBefore=0,
             leading=11,
             textColor=colors.black,
             fontName='Helvetica-Bold'
@@ -187,7 +210,7 @@ class PdfGenerator:
             parent=self.styles['Italic'],
             fontSize=8,
             alignment=TA_CENTER,
-            textColor=DNP_GREY,
+            textColor=DNP_BLACK,
             leading=10,
             spaceAfter=2,
             fontName='Helvetica-Oblique'
@@ -258,10 +281,10 @@ class PdfGenerator:
         doc = SimpleDocTemplate(
             pdf_file_path,
             pagesize=letter,
-            rightMargin=50,
-            leftMargin=50,
-            topMargin=50,
-            bottomMargin=90
+            rightMargin=2.54*cm,
+            leftMargin=2.54*cm,
+            topMargin=2.54*cm,
+            bottomMargin=2.54*cm
         )
         
 
@@ -301,7 +324,9 @@ class PdfGenerator:
             elements.append(PageBreak())
 
             if not has_names:
-                elements.append(Spacer(1, 0.2 * inch))
+                # Map title
+                map_title = Paragraph("<b>Listado de Municipios</b>", self.styles["SubTitle"])
+                elements.append(map_title)
 
                 data = data.copy()
                 data["Cod_Municipio"] = data["CodDANE_txt"].astype(str).str[-3:]
@@ -347,7 +372,7 @@ class PdfGenerator:
                         mid_cod, mid_mun,
                         right_cod, right_mun
                     ])
-
+               
                 # Create Table
                 cod_table = Table(
                     table_data,
@@ -362,10 +387,15 @@ class PdfGenerator:
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
-                    ('FONTSIZE', (0, 0), (-1, -1), 6),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('TOPPADDING', (0,0), (-1,-1), 2),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+                    ('LEFTPADDING', (0,0), (-1,-1), 3),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 3)
                 ]))
 
                 elements.append(cod_table)
+                elements.append(PageBreak())
                 
                 
         else:
@@ -374,7 +404,16 @@ class PdfGenerator:
         
         # ==================== PAGE 2 ====================
 
-        elements.append(Paragraph("Tipologías municipales 2026", self.styles["SectionTitle"]))
+        elements.append(Paragraph("Tipologías municipales 2026", self.styles["SectionTitleMain"]))
+        elements.append(
+            HRFlowable(
+                width="100%",
+                thickness=0.6,
+                color=DNP_BLACK,
+                spaceBefore=2,
+                spaceAfter=6
+            )
+        )
         elements.append(Spacer(1, 0.05 * inch))
 
         typology_counts = data["Tipología_2026_CortesArcMap"].value_counts()
@@ -392,6 +431,31 @@ class PdfGenerator:
             f"• El departamento de <b>{departmentName}</b> está conformado por <b>{total_municipalities}</b> municipios.",
             self.styles["ListText"]
         ))
+        elements.append(Spacer(1, 0.05 * inch))
+        
+        ciudades_grandes = data[data["Tipología_2026_CortesArcMap"] == "Ciudades grandes"]
+
+        if len(ciudades_grandes) == 0:
+
+            texto_ciudades = (
+                "• Ningún municipio de este departamento pertenece a las Tipologías de "
+                "<b>Ciudades Grandes</b> - Sistema de Ciudades."
+            )
+
+        else:
+
+            nombres = ", ".join(ciudades_grandes["Municipio"].tolist())
+
+            if len(ciudades_grandes) == 1:
+                texto_ciudades = (
+                    f"• {nombres} está dentro de la Tipología de <b>Ciudades Grandes</b>."
+                )
+            else:
+                texto_ciudades = (
+                    f"• {nombres} están dentro de la Tipología de <b>Ciudades Grandes</b>."
+                )
+
+        elements.append(Paragraph(texto_ciudades, self.styles["ListText"]))
         elements.append(Spacer(1, 0.05 * inch))
 
         for t in [1, 2, 3, 4, 5]:
@@ -425,7 +489,6 @@ class PdfGenerator:
         # Typologies results table
         elements.append(Paragraph("Resultados de tipologías municipales y distritales", self.styles["TableTitle"]))
         elements.append(Paragraph("Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
-        elements.append(Spacer(1, 0.05 * inch))
         
         
         total_municipalities = len(data)
@@ -530,6 +593,12 @@ class PdfGenerator:
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
 
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 3),
+            ('RIGHTPADDING', (0,0), (-1,-1), 3),
+            
 
             ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
@@ -543,16 +612,27 @@ class PdfGenerator:
         typology_table.setStyle(table_style)
         
         elements.append(typology_table)
-        elements.append(Spacer(1, 0.05 * inch))
         elements.append(
             Paragraph(
                 "Fuente: Elaboración propia con base en información del DNP",
                 self.styles["SourceText"]
             )
         )
-        elements.append(PageBreak())
+        
         
         # ==================== PAGE 3 ====================
+        elements.append(PageBreak())
+        elements.append(Paragraph("Análisis de contraste", self.styles["SectionTitleMain"]))
+        elements.append(
+            HRFlowable(
+                width="100%",
+                thickness=0.6,
+                color=DNP_BLACK,
+                spaceBefore=2,
+                spaceAfter=6
+            )
+        )
+        
         
         # Socioeconomic characteristics
         elements.append(Paragraph("Características socioeconómicas", self.styles["SectionTitle"]))
@@ -638,7 +718,6 @@ class PdfGenerator:
         # Complementary variables table
         elements.append(Paragraph("Tipologías vs. variables complementarias", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
-        elements.append(Spacer(1, 0.05 * inch))
 
         tipologias = ["Bogotá", "Ciudades grandes", 1, 2, 3, 4, 5]
 
@@ -716,6 +795,10 @@ class PdfGenerator:
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 3),
+            ('RIGHTPADDING', (0,0), (-1,-1), 3)
         ])
         
         aplicar_colores(ipm_vals, 1, table_style)
@@ -736,14 +819,12 @@ class PdfGenerator:
             
 
         elements.append(complementary_table)
-        elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia con base en la información del DANE y DNP", self.styles["SourceText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
         #Table 2.1 - MDM table
         elements.append(Paragraph("Tipologías vs. MDM 2024", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
-        elements.append(Spacer(1, 0.05 * inch))
         
         mdm_data = [
             ["Tipología", "MDM", "MDM Resultados", "Educación", "Salud", "Servicios", "Seguridad y\n convivencia"]
@@ -855,6 +936,10 @@ class PdfGenerator:
             ('FONTSIZE', (0, 0), (-1, -1), 8),
 
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 3),
+            ('RIGHTPADDING', (0,0), (-1,-1), 3),
 
             ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
@@ -871,7 +956,6 @@ class PdfGenerator:
         mdm_table.setStyle(table_style)
                 
         elements.append(mdm_table)
-        elements.append(Spacer(1, 0.05 * inch))
         elements.append(
             Paragraph(
                 "Fuente: Elaboración propia con base en información del DNP",
@@ -884,6 +968,7 @@ class PdfGenerator:
         # ==================== PAGE 4 ====================
         
         # Income section
+        elements.append(PageBreak())
         elements.append(Paragraph("Ingresos", self.styles["SectionTitle"]))
         elements.append(Spacer(1, 0.05 * inch))
         
@@ -893,7 +978,6 @@ class PdfGenerator:
         
         elements.append(Paragraph("Ingresos propios 2024. Cifras en pesos", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
-        elements.append(Spacer(1, 0.05 * inch))
         
         
         # Table 3
@@ -1005,6 +1089,10 @@ class PdfGenerator:
             ('FONTSIZE', (0, 0), (-1, -1), 9),
 
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 3),
+            ('RIGHTPADDING', (0,0), (-1,-1), 3),
 
             ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
@@ -1021,7 +1109,6 @@ class PdfGenerator:
         income_table.setStyle(table_style)
 
         elements.append(income_table)
-        elements.append(Spacer(1, 0.05 * inch))
         elements.append(
             Paragraph(
                 "Fuente: Elaboración propia con base en las operaciones efectivas de caja calculadas por el DNP",
@@ -1047,7 +1134,6 @@ class PdfGenerator:
         # Protected areas table
         elements.append(Paragraph("Tipologías vs. Rango de % de áreas protegidas y ecosistemas estratégicos", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
-        elements.append(Spacer(1, 0.05 * inch))
         
         
         #Table 4
@@ -1125,10 +1211,17 @@ class PdfGenerator:
             ('SPAN', (6, 0), (6, 1)),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('LINEBELOW', (1, 0), (5, 0), 2, colors.black),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 3),
+            ('RIGHTPADDING', (0,0), (-1,-1), 3),
+            
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (-1, 0), (-1, -1), 'Helvetica-Bold'),
+            
         ]))
         
         elements.append(protected_areas_table)
-        elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
@@ -1149,7 +1242,6 @@ class PdfGenerator:
         # Ethnic territories table
         elements.append(Paragraph("Tipologías vs. Rango de % de área de territorios étnicos", self.styles["TableTitle"]))
         elements.append(Paragraph("Nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["TableTitle"]))
-        elements.append(Spacer(1, 0.05 * inch))
         
         #Table 5
         ethnic_territories_data = [
@@ -1227,10 +1319,16 @@ class PdfGenerator:
             ('SPAN', (6, 0), (6, 1)),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('LINEBELOW', (1, 0), (5, 0), 2, colors.black),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 3),
+            ('RIGHTPADDING', (0,0), (-1,-1), 3),
+            
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (-1, 0), (-1, -1), 'Helvetica-Bold')
         ]))
         
         elements.append(ethnic_territories_table)
-        elements.append(Spacer(1, 0.05 * inch))
         elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
         
         
@@ -1238,10 +1336,11 @@ class PdfGenerator:
         elements.append(Spacer(1, 0.1 * inch))
        
         
-        elements.append(PageBreak())
+        
         # ==================== PAGE 7 ====================
         
         # Annex
+        elements.append(PageBreak())
         elements.append(Paragraph("Anexo", self.styles["SectionTitle"]))
         elements.append(Spacer(1, 0.1 * inch))
         elements.append(Paragraph("Tipologías a nivel municipal- Departamento de {departmentName}".format(departmentName=departmentName), self.styles["SubTitle"]))
@@ -1287,6 +1386,10 @@ class PdfGenerator:
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 3),
+            ('RIGHTPADDING', (0,0), (-1,-1), 3)
         ]))
         
         elements.append(annex_table)
