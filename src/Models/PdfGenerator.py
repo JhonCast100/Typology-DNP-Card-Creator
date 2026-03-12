@@ -73,7 +73,7 @@ class PdfGenerator:
         self.styles.add(ParagraphStyle(
             name='DeptTitle',
             parent=self.styles['Heading1'],
-            fontSize=12,
+            fontSize=13,
             alignment=TA_CENTER,
             spaceAfter=8,
             leading=18,
@@ -85,7 +85,7 @@ class PdfGenerator:
         self.styles.add(ParagraphStyle(
             name='SectionTitle',
             parent=self.styles['Heading2'],
-            fontSize=12,
+            fontSize=13,
             alignment=TA_LEFT,
             spaceAfter=6,
             leading=14,
@@ -97,7 +97,7 @@ class PdfGenerator:
         self.styles.add(ParagraphStyle(
             name='SectionTitleMain',
             parent=self.styles['Heading2'],
-            fontSize=12,
+            fontSize=13,
             alignment=TA_LEFT,
             spaceAfter=6,
             leading=14,
@@ -110,7 +110,7 @@ class PdfGenerator:
         self.styles.add(ParagraphStyle(
             name='SubTitle',
             parent=self.styles['Heading2'],
-            fontSize=11,
+            fontSize=12,
             alignment=TA_CENTER,
             spaceAfter=6,
             leading=13,
@@ -122,7 +122,7 @@ class PdfGenerator:
         self.styles.add(ParagraphStyle(
             name='NormalText',
             parent=self.styles['Normal'],
-            fontSize=9,
+            fontSize=10,
             alignment=TA_JUSTIFY,
             spaceAfter=4,
             leading=11,
@@ -130,11 +130,11 @@ class PdfGenerator:
             fontName='Helvetica'
         ))
         
-        # List text - CORREGIDO
+        # List text 
         self.styles.add(ParagraphStyle(
             name='ListText',
             parent=self.styles['Normal'],
-            fontSize=9,
+            fontSize=10,
             alignment=TA_JUSTIFY,   
             spaceAfter=2,          # CAMBIADO: era 4, ahora 2 para menos espacio
             leading=11,            # CAMBIADO: era 12, ahora 11 para que esté más compacto
@@ -150,7 +150,7 @@ class PdfGenerator:
             name='TableFootnote',
             parent=self.styles['Normal'],
             alignment=TA_JUSTIFY, 
-            fontSize=7,          # más pequeño
+            fontSize=7,          
             leading=9,
             textColor=colors.black,
             leftIndent=0,
@@ -208,7 +208,7 @@ class PdfGenerator:
         self.styles.add(ParagraphStyle(
             name='SourceText',
             parent=self.styles['Italic'],
-            fontSize=8,
+            fontSize=10,
             alignment=TA_CENTER,
             textColor=DNP_BLACK,
             leading=10,
@@ -403,11 +403,14 @@ class PdfGenerator:
         
         if departmentName.strip().upper() == "CHOCÓ":
             nota_choco = """
-            No incluye el Municipio Nuevo Belén de Bajirá creado a partir del decreto 0284 del 26 de diciembre de 2023 y de la Ordenanza No. 180 del 27 de junio de 2023, segregado del municipio de Riosucio. Esto teniendo en cuenta que a la fecha de expedición de las tipologías para la vigencia 2025 no se contaba con información final del proceso de deslinde respectivo, la cartografía oficial con esta nueva entidad territorial, ni las actualizaciones del Marco Geoestadístico Nacional -MGN.
+            Nota: La cartografía del departamento no incluye el municipio Nuevo Belén de Bajirá creado a partir del decreto 0284 del 26 de diciembre de 2023 
+            y de la Ordenanza No. 180 del 27 de junio de 2023, segregado del municipio de Riosucio. Esto teniendo en cuenta que a la fecha de expedición de las tipologías para la vigencia 2025
+            no se contaba con información final del proceso de deslinde respectivo, la cartografía oficial con esta nueva entidad territorial, ni las actualizaciones del 
+            Marco Geoestadístico Nacional -MGN.
             """
 
             elements.append(Spacer(1, 0.08 * inch))
-            elements.append(Paragraph(nota_choco, self.styles["SourceText"]))
+            elements.append(Paragraph(nota_choco, self.styles["NormalText"]))
         
         # ==================== PAGE 2 ====================
 
@@ -446,7 +449,7 @@ class PdfGenerator:
 
         if len(ciudades_grandes) == 0:
             texto_ciudades = (
-                "Ningún municipio de este departamento pertenece a las Tipologías de "
+                "Ningún municipio de este departamento pertenece a la Tipología de "
                 "<b>Ciudades Grandes</b>."
             )
         else:
@@ -551,7 +554,7 @@ class PdfGenerator:
 
         typology_table = Table(
             typology_table_data,
-            colWidths=[4*cm, 4*cm, 4*cm, 5*cm],
+            colWidths=[3*cm, 3*cm, 3*cm, 4*cm],
             repeatRows=1
         )
         
@@ -593,7 +596,7 @@ class PdfGenerator:
 
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
 
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
             
             ('TOPPADDING', (0,0), (-1,-1), 2),
             ('BOTTOMPADDING', (0,0), (-1,-1), 2),
@@ -601,8 +604,8 @@ class PdfGenerator:
             ('RIGHTPADDING', (0,0), (-1,-1), 3),
             
 
-            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+            ('LINEABOVE', (0, 0), (-1, 0), 1, colors.grey),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.grey),
         ])
         table_style.add('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey)
         table_style.add('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
@@ -796,8 +799,8 @@ class PdfGenerator:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.grey),
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
             ('TOPPADDING', (0,0), (-1,-1), 2),
             ('BOTTOMPADDING', (0,0), (-1,-1), 2),
@@ -943,14 +946,14 @@ class PdfGenerator:
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
 
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
             ('TOPPADDING', (0,0), (-1,-1), 2),
             ('BOTTOMPADDING', (0,0), (-1,-1), 2),
             ('LEFTPADDING', (0,0), (-1,-1), 3),
             ('RIGHTPADDING', (0,0), (-1,-1), 3),
 
-            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+            ('LINEABOVE', (0, 0), (-1, 0), 1, colors.grey),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.grey),
         ])
 
         # aplicar colores ranking
@@ -1095,14 +1098,14 @@ class PdfGenerator:
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
 
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
             ('TOPPADDING', (0,0), (-1,-1), 2),
             ('BOTTOMPADDING', (0,0), (-1,-1), 2),
             ('LEFTPADDING', (0,0), (-1,-1), 3),
             ('RIGHTPADDING', (0,0), (-1,-1), 3),
 
-            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.black),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+            ('LINEABOVE', (0, 0), (-1, 0), 1, colors.grey),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.grey),
         ])
 
 
@@ -1131,7 +1134,7 @@ class PdfGenerator:
         
         environmental_text = """
         La variable porcentaje de "Áreas protegidas y ecosistemas estratégicos" resulta del cruce de información 
-        del Registro Único Nacional de Áreas Protegidas (RUNAP y del Registro de Ecosistemas y Áreas 
+        del Registro Único Nacional de Áreas Protegidas (RUNAP) y del Registro de Ecosistemas y Áreas 
         Ambientales (REAA), en relación con el total del área municipal.
         """
         elements.append(Paragraph(environmental_text, self.styles["NormalText"]))
@@ -1216,8 +1219,8 @@ class PdfGenerator:
             ('SPAN', (0, 0), (0, 1)),
             ('SPAN', (1, 0), (5, 0)),
             ('SPAN', (6, 0), (6, 1)),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('LINEBELOW', (1, 0), (5, 0), 2, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
+            ('LINEBELOW', (1, 0), (5, 0), 1, colors.grey),
             ('TOPPADDING', (0,0), (-1,-1), 2),
             ('BOTTOMPADDING', (0,0), (-1,-1), 2),
             ('LEFTPADDING', (0,0), (-1,-1), 3),
@@ -1231,7 +1234,7 @@ class PdfGenerator:
         ]))
         
         elements.append(protected_areas_table)
-        elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
+        elements.append(Paragraph("Fuente: Elaboración propia con base en la información de la ANT,2025", self.styles["SourceText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
         elements.append(PageBreak())
@@ -1326,8 +1329,8 @@ class PdfGenerator:
             ('SPAN', (0, 0), (0, 1)),
             ('SPAN', (1, 0), (5, 0)),
             ('SPAN', (6, 0), (6, 1)),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('LINEBELOW', (1, 0), (5, 0), 2, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
+            ('LINEBELOW', (1, 0), (5, 0), 1, colors.grey),
             ('TOPPADDING', (0,0), (-1,-1), 2),
             ('BOTTOMPADDING', (0,0), (-1,-1), 2),
             ('LEFTPADDING', (0,0), (-1,-1), 3),
@@ -1340,7 +1343,7 @@ class PdfGenerator:
         ]))
         
         elements.append(ethnic_territories_table)
-        elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
+        elements.append(Paragraph("Fuente: Elaboración propia con base en la información del RUNAP (2025) y REEA (2017)", self.styles["SourceText"]))
         
         
         
@@ -1403,8 +1406,8 @@ class PdfGenerator:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.grey),
             ('TOPPADDING', (0,0), (-1,-1), 2),
             ('BOTTOMPADDING', (0,0), (-1,-1), 2),
             ('LEFTPADDING', (0,0), (-1,-1), 3),
