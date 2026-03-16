@@ -484,7 +484,7 @@ class PdfGenerator:
 
             elements.append(Paragraph(texto, self.styles["ListText"], bulletText='•'))
             elements.append(Spacer(1, 0.02 * inch)) 
-            
+            elements.append(Spacer(1, 0.1 * inch))
 
         #Table 1
         # Typologies results table
@@ -1142,7 +1142,7 @@ class PdfGenerator:
         ]))
         
         elements.append(protected_areas_table)
-        elements.append(Paragraph("Fuente: Elaboración propia con base en la información del RUNAP (2025) y REEA (2017)", self.styles["SourceText"]))
+        elements.append(Paragraph("Fuente: Elaboración propia con base en la información del RUNAP (2025) y REAA (2017)", self.styles["SourceText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
         elements.append(PageBreak())
