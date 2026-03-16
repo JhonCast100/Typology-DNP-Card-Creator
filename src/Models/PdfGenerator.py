@@ -208,7 +208,7 @@ class PdfGenerator:
         self.styles.add(ParagraphStyle(
             name='SourceText',
             parent=self.styles['Italic'],
-            fontSize=10,
+            fontSize=9,
             alignment=TA_CENTER,
             textColor=DNP_BLACK,
             leading=10,
@@ -561,22 +561,34 @@ class PdfGenerator:
     
         valid_values = [v for v in promedios_tipologias if v is not None]
 
-        # Order by value, from highest to lowest
-        sorted_vals = sorted(valid_values)
+        # Order Values to the scale of the colors
+        sorted_unique_vals = sorted(set(valid_values), reverse=True)
+
+        n = len(sorted_unique_vals)
+
+        # Select specific colors from the ranking_colors list based on the number of unique values
+        if n > 0:
+            indices = [
+                round(i * (len(self.ranking_colors)-1) / (n-1)) if n > 1 else 0
+                for i in range(n)
+            ]
+            selected_colors = [self.ranking_colors[i] for i in indices]
+        else:
+            selected_colors = []
+
+        value_color_map = {
+            val: selected_colors[i]
+            for i, val in enumerate(sorted_unique_vals)
+        }
 
         row_colors = {}
 
         for i, val in enumerate(promedios_tipologias):
+
             if val is None:
                 continue
 
-            rank = sorted_vals.index(val)
-            
-            #Invertion of the color index to paint from worst to best
-            color_index = len(self.ranking_colors) - 1 - rank
-
-            if color_index >= 0 and color_index < len(self.ranking_colors):
-                row_colors[i+1] = self.ranking_colors[color_index]
+            row_colors[i+1] = value_color_map[val]
         
 
         table_style = TableStyle([
@@ -679,33 +691,43 @@ class PdfGenerator:
         
         def aplicar_colores(valores, col_index, table_style):
 
-            valid = [v for v in valores if v is not None]
+            valid_values = [v for v in valores if v is not None]
 
-            if not valid:
+            if not valid_values:
                 return
 
-            
-            sorted_vals = sorted(valid, reverse=True)
+            # ordenar valores únicos (MENOR = mejor)
+            sorted_unique_vals = sorted(set(valid_values))
 
+            n = len(sorted_unique_vals)
+
+            # seleccionar colores distribuidos
+            if n > 0:
+                indices = [
+                    round(i * (len(self.ranking_colors)-1) / (n-1)) if n > 1 else 0
+                    for i in range(n)
+                ]
+                selected_colors = [self.ranking_colors[i] for i in indices]
+            else:
+                selected_colors = []
+
+            # mapa valor -> color
+            value_color_map = {
+                val: selected_colors[i]
+                for i, val in enumerate(sorted_unique_vals)
+            }
+
+            # aplicar colores
             for i, val in enumerate(valores):
-
                 if val is None:
                     continue
 
-                rank = sorted_vals.index(val)
-                
-                
-                color_index = len(self.ranking_colors) - 1 - rank
-
-                if color_index >= 0 and color_index < len(self.ranking_colors):
-                    table_style.add(
-                        'BACKGROUND',
-                        (col_index, i+1),
-                        (col_index, i+1),
-                        self.ranking_colors[color_index]
-                    )
-        
-        
+                table_style.add(
+                    'BACKGROUND',
+                    (col_index, i+1),
+                    (col_index, i+1),
+                    value_color_map[val]
+                )
 
         def promedio_tipologia(columna, tipologia):
 
@@ -918,24 +940,40 @@ class PdfGenerator:
 
             valid_values = [v for v in values if v is not None]
 
-            
-            sorted_vals = sorted(valid_values)
+            if not valid_values:
+                continue
+
+            # ordenar valores únicos (mayor = mejor)
+            sorted_unique_vals = sorted(set(valid_values), reverse=True)
+
+            n = len(sorted_unique_vals)
+
+            # seleccionar colores distribuidos según cantidad de valores
+            if n > 0:
+                indices = [
+                    round(i * (len(self.ranking_colors)-1) / (n-1)) if n > 1 else 0
+                    for i in range(n)
+                ]
+                selected_colors = [self.ranking_colors[i] for i in indices]
+            else:
+                selected_colors = []
+
+            # mapa valor -> color (valores iguales mismo color)
+            value_color_map = {
+                val: selected_colors[i]
+                for i, val in enumerate(sorted_unique_vals)
+            }
 
             for row_index, val in enumerate(values):
 
                 if val is None:
                     continue
 
-                rank = sorted_vals.index(val)
-                
-                
-                color_index = len(self.ranking_colors) - 1 - rank
-
-                if color_index >= 0 and color_index < len(self.ranking_colors):
-                    column_cell_colors.append(
-                        (col_index + 1, row_index + 1, self.ranking_colors[color_index])
-                    )
-            
+                column_cell_colors.append(
+                    (col_index + 1, row_index + 1, value_color_map[val])
+                )
+        
+        
         table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -1065,28 +1103,41 @@ class PdfGenerator:
         column_colors = []
 
         for col_index, valores in enumerate([valores_tributarios, valores_totales]):
-
             valid_values = [v for v in valores if v is not None]
 
-           
-            sorted_vals = sorted(valid_values)
+            if not valid_values:
+                continue
+
+            # ordenar valores únicos (mayor = mejor)
+            sorted_unique_vals = sorted(set(valid_values), reverse=True)
+
+            n = len(sorted_unique_vals)
+
+            # seleccionar colores distribuidos según cantidad de valores
+            if n > 0:
+                indices = [
+                    round(i * (len(self.ranking_colors)-1) / (n-1)) if n > 1 else 0
+                    for i in range(n)
+                ]
+                selected_colors = [self.ranking_colors[i] for i in indices]
+            else:
+                selected_colors = []
+
+            # mapa valor -> color
+            value_color_map = {
+                val: selected_colors[i]
+                for i, val in enumerate(sorted_unique_vals)
+            }
 
             for row_index, val in enumerate(valores):
 
                 if val is None:
                     continue
 
-                rank = sorted_vals.index(val)
-                
-                
-                color_index = len(self.ranking_colors) - 1 - rank
-
-                if color_index >= 0 and color_index < len(self.ranking_colors):
-                    column_colors.append(
-                        (col_index + 1, row_index + 1, self.ranking_colors[color_index])
-                    )
-
-
+                column_colors.append(
+                    (col_index + 1, row_index + 1, value_color_map[val])
+                )
+        
         table_style = TableStyle([
 
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
@@ -1234,7 +1285,7 @@ class PdfGenerator:
         ]))
         
         elements.append(protected_areas_table)
-        elements.append(Paragraph("Fuente: Elaboración propia con base en la información de la ANT,2025", self.styles["SourceText"]))
+        elements.append(Paragraph("Fuente: Elaboración propia con base en la información del RUNAP (2025) y REEA (2017)", self.styles["SourceText"]))
         elements.append(Spacer(1, 0.1 * inch))
         
         elements.append(PageBreak())
@@ -1343,7 +1394,7 @@ class PdfGenerator:
         ]))
         
         elements.append(ethnic_territories_table)
-        elements.append(Paragraph("Fuente: Elaboración propia con base en la información del RUNAP (2025) y REEA (2017)", self.styles["SourceText"]))
+        elements.append(Paragraph("Fuente: Elaboración propia con base en la información de la ANT, 2025", self.styles["SourceText"]))
         
         
         
@@ -1454,7 +1505,7 @@ class PdfGenerator:
         # Footer text
         canvas.setFillColor(DNP_BLACK)
 
-        # Dirección
+        # Address
         canvas.setFont("Helvetica-Bold", 7)
         canvas.drawString(line_start, 65, "Dirección:")
         canvas.setFont("Helvetica", 7)
@@ -1466,7 +1517,7 @@ class PdfGenerator:
         canvas.setFont("Helvetica", 7)
         canvas.drawString(line_start + 45, 55, " 601 3815000")
 
-        # Línea gratuita
+        # Free line
         canvas.setFont("Helvetica-Bold", 7)
         canvas.drawString(line_start, 45, "Línea gratuita:")
         canvas.setFont("Helvetica", 7)
