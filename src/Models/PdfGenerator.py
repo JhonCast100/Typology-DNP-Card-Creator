@@ -559,37 +559,6 @@ class PdfGenerator:
         )
         
     
-        valid_values = [v for v in promedios_tipologias if v is not None]
-
-        # Order Values to the scale of the colors
-        sorted_unique_vals = sorted(set(valid_values), reverse=True)
-
-        n = len(sorted_unique_vals)
-
-        # Select specific colors from the ranking_colors list based on the number of unique values
-        if n > 0:
-            indices = [
-                round(i * (len(self.ranking_colors)-1) / (n-1)) if n > 1 else 0
-                for i in range(n)
-            ]
-            selected_colors = [self.ranking_colors[i] for i in indices]
-        else:
-            selected_colors = []
-
-        value_color_map = {
-            val: selected_colors[i]
-            for i, val in enumerate(sorted_unique_vals)
-        }
-
-        row_colors = {}
-
-        for i, val in enumerate(promedios_tipologias):
-
-            if val is None:
-                continue
-
-            row_colors[i+1] = value_color_map[val]
-        
 
         table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
@@ -622,8 +591,12 @@ class PdfGenerator:
         table_style.add('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey)
         table_style.add('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
         
-        for row, color in row_colors.items():
-            table_style.add('BACKGROUND', (3, row), (3, row), color)
+        self.apply_ranking_colors(
+            promedios_tipologias,
+            3,
+            table_style,
+            higher_is_better=True
+        )
 
         typology_table.setStyle(table_style)
         
@@ -688,61 +661,6 @@ class PdfGenerator:
         nbi_vals = []
         irca_vals = []
         iica_vals = []
-        
-        def aplicar_colores(valores, col_index, table_style):
-
-            valid_values = [v for v in valores if v is not None]
-
-            if not valid_values:
-                return
-
-            # ordenar valores únicos (MENOR = mejor)
-            sorted_unique_vals = sorted(set(valid_values))
-
-            n = len(sorted_unique_vals)
-
-            # seleccionar colores distribuidos
-            if n > 0:
-                indices = [
-                    round(i * (len(self.ranking_colors)-1) / (n-1)) if n > 1 else 0
-                    for i in range(n)
-                ]
-                selected_colors = [self.ranking_colors[i] for i in indices]
-            else:
-                selected_colors = []
-
-            # mapa valor -> color
-            value_color_map = {
-                val: selected_colors[i]
-                for i, val in enumerate(sorted_unique_vals)
-            }
-
-            # aplicar colores
-            for i, val in enumerate(valores):
-                if val is None:
-                    continue
-
-                table_style.add(
-                    'BACKGROUND',
-                    (col_index, i+1),
-                    (col_index, i+1),
-                    value_color_map[val]
-                )
-
-        def promedio_tipologia(columna, tipologia):
-
-            subset = data[data["Tipología_2026_CortesArcMap"] == tipologia]
-
-            if subset.empty:
-                return "-"
-
-            valor = subset[columna].mean()
-
-            if pd.isna(valor):
-                return "-"
-
-            return f"{valor:.2f}".replace(".", ",")
-
         
         # Complementary variables table
         elements.append(Paragraph("Tipologías y variables complementarias", self.styles["TableTitle"]))
@@ -830,11 +748,11 @@ class PdfGenerator:
             ('RIGHTPADDING', (0,0), (-1,-1), 3)
         ])
         
-        aplicar_colores(ipm_vals, 1, table_style)
-        aplicar_colores(nbi_vals, 2, table_style)
-        aplicar_colores(irca_vals, 3, table_style)
-        aplicar_colores(iica_vals, 4, table_style)
-        complementary_table.setStyle(table_style)
+        # Apply ranking colors to the columns with numeric values, excluding the header and total row
+        self.apply_ranking_colors(ipm_vals, 1, table_style, higher_is_better=False)
+        self.apply_ranking_colors(nbi_vals, 2, table_style, higher_is_better=False)
+        self.apply_ranking_colors(irca_vals, 3, table_style, higher_is_better=False)
+        self.apply_ranking_colors(iica_vals, 4, table_style, higher_is_better=False)
         
         table_style.add(
             'BACKGROUND',
@@ -932,48 +850,6 @@ class PdfGenerator:
                 else:
                     column_values[col].append(pd.to_numeric(subset[col], errors="coerce").mean())
                     
-        column_cell_colors = []
-
-        for col_index, col in enumerate(columnas):
-
-            values = column_values[col]
-
-            valid_values = [v for v in values if v is not None]
-
-            if not valid_values:
-                continue
-
-            # ordenar valores únicos (mayor = mejor)
-            sorted_unique_vals = sorted(set(valid_values), reverse=True)
-
-            n = len(sorted_unique_vals)
-
-            # seleccionar colores distribuidos según cantidad de valores
-            if n > 0:
-                indices = [
-                    round(i * (len(self.ranking_colors)-1) / (n-1)) if n > 1 else 0
-                    for i in range(n)
-                ]
-                selected_colors = [self.ranking_colors[i] for i in indices]
-            else:
-                selected_colors = []
-
-            # mapa valor -> color (valores iguales mismo color)
-            value_color_map = {
-                val: selected_colors[i]
-                for i, val in enumerate(sorted_unique_vals)
-            }
-
-            for row_index, val in enumerate(values):
-
-                if val is None:
-                    continue
-
-                column_cell_colors.append(
-                    (col_index + 1, row_index + 1, value_color_map[val])
-                )
-        
-        
         table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -995,12 +871,19 @@ class PdfGenerator:
         ])
 
         
-        for col, row, color in column_cell_colors:
-            table_style.add('BACKGROUND', (col, row), (col, row), color)
-
         
         table_style.add('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey)
         table_style.add('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+
+        #Color ranking
+        for col_index, col in enumerate(columnas):
+
+            self.apply_ranking_colors(
+                column_values[col],
+                col_index + 1,
+                table_style,
+                higher_is_better=True
+            )
 
         mdm_table.setStyle(table_style)
                 
@@ -1100,43 +983,6 @@ class PdfGenerator:
             colWidths=[4*cm, 4*cm, 4*cm]
         )
 
-        column_colors = []
-
-        for col_index, valores in enumerate([valores_tributarios, valores_totales]):
-            valid_values = [v for v in valores if v is not None]
-
-            if not valid_values:
-                continue
-
-            # ordenar valores únicos (mayor = mejor)
-            sorted_unique_vals = sorted(set(valid_values), reverse=True)
-
-            n = len(sorted_unique_vals)
-
-            # seleccionar colores distribuidos según cantidad de valores
-            if n > 0:
-                indices = [
-                    round(i * (len(self.ranking_colors)-1) / (n-1)) if n > 1 else 0
-                    for i in range(n)
-                ]
-                selected_colors = [self.ranking_colors[i] for i in indices]
-            else:
-                selected_colors = []
-
-            # mapa valor -> color
-            value_color_map = {
-                val: selected_colors[i]
-                for i, val in enumerate(sorted_unique_vals)
-            }
-
-            for row_index, val in enumerate(valores):
-
-                if val is None:
-                    continue
-
-                column_colors.append(
-                    (col_index + 1, row_index + 1, value_color_map[val])
-                )
         
         table_style = TableStyle([
 
@@ -1160,12 +1006,23 @@ class PdfGenerator:
         ])
 
 
-        for col, row, color in column_colors:
-            table_style.add('BACKGROUND', (col, row), (col, row), color)
-
-
         table_style.add('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey)
         table_style.add('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+        
+        #Color ranking
+        self.apply_ranking_colors(
+            valores_tributarios,
+            1,
+            table_style,
+            higher_is_better=True
+        )
+
+        self.apply_ranking_colors(
+            valores_totales,
+            2,
+            table_style,
+            higher_is_better=True
+        )
 
         income_table.setStyle(table_style)
 
@@ -1528,3 +1385,48 @@ class PdfGenerator:
         canvas.drawRightString(line_start + line_width, 45, f"Página {page_num}")
         
         canvas.restoreState()
+        
+        
+    #Method to apply ranking colors to a column based on its values
+    def apply_ranking_colors(self, values, column_index, table_style, higher_is_better=True):
+
+        valid_values = [v for v in values if v is not None]
+
+        #Do not apply colors if there are no valid values or if all values are the same (no ranking needed)
+        if len(valid_values) <= 1:
+            return
+
+        #Order unique values to assign colors (higher = better)
+        if higher_is_better:
+            sorted_unique_vals = sorted(set(valid_values), reverse=True)
+        else:
+            sorted_unique_vals = sorted(set(valid_values))
+
+        n = len(sorted_unique_vals)
+
+        #   Select colors distributed according to the number of unique values
+        indices = [
+            round(i * (len(self.ranking_colors)-1) / (n-1))
+            for i in range(n)
+        ]
+
+        selected_colors = [self.ranking_colors[i] for i in indices]
+
+        value_color_map = {
+            val: selected_colors[i]
+            for i, val in enumerate(sorted_unique_vals)
+        }
+
+        for row_index, val in enumerate(values):
+
+            if val is None:
+                continue
+
+            if val in value_color_map:
+
+                table_style.add(
+                    'BACKGROUND',
+                    (column_index, row_index + 1),
+                    (column_index, row_index + 1),
+                    value_color_map[val]
+                )
