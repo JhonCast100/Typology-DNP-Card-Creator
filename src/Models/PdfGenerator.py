@@ -136,13 +136,13 @@ class PdfGenerator:
             parent=self.styles['Normal'],
             fontSize=10,
             alignment=TA_JUSTIFY,   
-            spaceAfter=2,          # CAMBIADO: era 4, ahora 2 para menos espacio
-            leading=11,            # CAMBIADO: era 12, ahora 11 para que esté más compacto
+            spaceAfter=2,          
+            leading=11,            
             textColor=colors.black,
             fontName='Helvetica',
-            leftIndent=12,         # CAMBIADO: era 20, ahora 12
-            firstLineIndent=-12,   # Esto hace que la viñeta sobresalga
-            bulletIndent=0         # CAMBIADO: para que la viñeta esté al inicio
+            leftIndent=12,         
+            firstLineIndent=-12,   
+            bulletIndent=0         
         ))
         
         # Table footnote style
@@ -436,7 +436,7 @@ class PdfGenerator:
             5: "Los municipios de esta tipología se caracterizan por tener bajos niveles de capacidad administrativa y fiscal; al mismo tiempo son los más desconectados y menos densos (mayor ruralidad)."
         }
 
-        #First bullet point with total municipalities
+        
         # First bullet point with total municipalities
         elements.append(Paragraph(
             f"El departamento de <b>{departmentName}</b> está conformado por <b>{total_municipalities}</b> municipios.",
@@ -460,7 +460,7 @@ class PdfGenerator:
                 texto_ciudades = f"{nombres} están dentro de la Tipología de <b>Ciudades Grandes</b>."
 
         elements.append(Paragraph(texto_ciudades, self.styles["ListText"], bulletText='•'))
-        elements.append(Spacer(1, 0.02 * inch))  # CAMBIADO: era 0.05, ahora 0.02
+        elements.append(Spacer(1, 0.02 * inch))  
 
         for t in [1, 2, 3, 4, 5]:
             cantidad = typology_counts.get(t, 0)
@@ -483,7 +483,7 @@ class PdfGenerator:
                 )
 
             elements.append(Paragraph(texto, self.styles["ListText"], bulletText='•'))
-            elements.append(Spacer(1, 0.02 * inch))  # CAMBIADO: era 0.05, ahora 0.02
+            elements.append(Spacer(1, 0.02 * inch)) 
             
 
         #Table 1
@@ -558,10 +558,10 @@ class PdfGenerator:
             repeatRows=1
         )
         
-        # obtener valores válidos
+    
         valid_values = [v for v in promedios_tipologias if v is not None]
 
-        # ordenar de menor a mayor (peor a mejor)
+        # Order by value, from highest to lowest
         sorted_vals = sorted(valid_values)
 
         row_colors = {}
@@ -572,7 +572,7 @@ class PdfGenerator:
 
             rank = sorted_vals.index(val)
             
-            # Invertir el índice del color para pintar de peor a mejor
+            #Invertion of the color index to paint from worst to best
             color_index = len(self.ranking_colors) - 1 - rank
 
             if color_index >= 0 and color_index < len(self.ranking_colors):
@@ -684,7 +684,7 @@ class PdfGenerator:
             if not valid:
                 return
 
-            # mayor = peor, así que ordenar de mayor a menor
+            
             sorted_vals = sorted(valid, reverse=True)
 
             for i, val in enumerate(valores):
@@ -694,7 +694,7 @@ class PdfGenerator:
 
                 rank = sorted_vals.index(val)
                 
-                # Invertir el índice del color para pintar de peor a mejor
+                
                 color_index = len(self.ranking_colors) - 1 - rank
 
                 if color_index >= 0 and color_index < len(self.ranking_colors):
@@ -897,7 +897,7 @@ class PdfGenerator:
         
         mdm_table = Table(mdm_data, colWidths=[3*cm, 2.2*cm, 2.6*cm, 2.2*cm, 2.2*cm, 2.2*cm, 3*cm])
 
-        # guardar promedios por columna para ranking
+        
         column_values = {col: [] for col in columnas}
 
         for label, t in tipologias:
@@ -918,7 +918,7 @@ class PdfGenerator:
 
             valid_values = [v for v in values if v is not None]
 
-            # ordenar de menor a mayor (peor a mejor)
+            
             sorted_vals = sorted(valid_values)
 
             for row_index, val in enumerate(values):
@@ -928,7 +928,7 @@ class PdfGenerator:
 
                 rank = sorted_vals.index(val)
                 
-                # Invertir el índice del color para pintar de peor a mejor
+                
                 color_index = len(self.ranking_colors) - 1 - rank
 
                 if color_index >= 0 and color_index < len(self.ranking_colors):
@@ -956,11 +956,11 @@ class PdfGenerator:
             ('LINEBELOW', (0, 0), (-1, 0), 1, colors.grey),
         ])
 
-        # aplicar colores ranking
+        
         for col, row, color in column_cell_colors:
             table_style.add('BACKGROUND', (col, row), (col, row), color)
 
-        # fila total
+        
         table_style.add('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey)
         table_style.add('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
 
@@ -1068,7 +1068,7 @@ class PdfGenerator:
 
             valid_values = [v for v in valores if v is not None]
 
-            # ordenar de menor a mayor (peor a mejor)
+           
             sorted_vals = sorted(valid_values)
 
             for row_index, val in enumerate(valores):
@@ -1078,7 +1078,7 @@ class PdfGenerator:
 
                 rank = sorted_vals.index(val)
                 
-                # Invertir el índice del color para pintar de peor a mejor
+                
                 color_index = len(self.ranking_colors) - 1 - rank
 
                 if color_index >= 0 and color_index < len(self.ranking_colors):
