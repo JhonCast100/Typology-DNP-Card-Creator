@@ -13,7 +13,7 @@ class  DataPdfController:
             self.df["Departamento"] == departmentName
         ].copy()  
 
-        # Convert the "Municipio" and "Departamento" columns to title case for better presentation in the PDF
+        #Create the PDF report with the data of the selected department
         departmentData.loc[:, "Municipio"] = departmentData["Municipio"].str.title()
         departmentData.loc[:, "Departamento"] = departmentData["Departamento"].str.title()
 
