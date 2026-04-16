@@ -292,8 +292,17 @@ class PdfGenerator:
         # ==================== PAGE 1 ====================
         
         # Main title
+        
+        title_autor = """<font size=14><b>Autor: Subdirección de Descentralización</b></font>"""
+        subtitle_autor = """<font size=12>Subdirección de Descentralización y Fortalecimiento Fiscal</font>"""
+
+        elements.append(Paragraph(title_autor, self.styles["MainTitle"]))
+        elements.append(Paragraph(subtitle_autor, self.styles["MainTitle"]))
+        
+        
         title_text = """<font size=14><b>Tipologías de las Entidades Territoriales para el Reconocimiento de Capacidades.</b></font>"""
-        title_text2 = """<font size=14><b>Resultados para la Vigencia 2026</b></font>"""
+        title_text2 = """<font size=14><b>Resultados Vigencia 2026</b></font>"""
+        
         
         title = Paragraph(title_text, self.styles["MainTitle"])
         elements.append(title)
@@ -484,7 +493,6 @@ class PdfGenerator:
 
             elements.append(Paragraph(texto, self.styles["ListText"], bulletText='•'))
             elements.append(Spacer(1, 0.02 * inch)) 
-            elements.append(Spacer(1, 0.1 * inch))
 
         #Table 1
         # Typologies results table
@@ -1296,10 +1304,10 @@ class PdfGenerator:
 
         for _, row in data_ordenado.iterrows():
             annex_data.append([
-                str(row["CodDANE_txt"]),
-                row["Departamento"],
-                row["Municipio"],
-                str(row["Tipología_2026_CortesArcMap"])
+                Paragraph(str(row["CodDANE_txt"]), self.styles["Normal"]),
+                Paragraph(row["Departamento"], self.styles["Normal"]),
+                Paragraph(row["Municipio"], self.styles["Normal"]),
+                Paragraph(str(row["Tipología_2026_CortesArcMap"]), self.styles["Normal"])
             ])
         
         annex_table = Table(
@@ -1324,6 +1332,43 @@ class PdfGenerator:
         
         elements.append(annex_table)
         elements.append(Spacer(1, 0.2 * inch))
+        
+        
+        #Complementary Glosary table
+        # ==================== GLOSARIO ====================
+
+        elements.append(PageBreak())
+        elements.append(Paragraph("Glosario de siglas", self.styles["SectionTitleMain"]))
+        elements.append(
+            HRFlowable(
+                width="100%",
+                thickness=0.6,
+                color=DNP_BLACK,
+                spaceBefore=2,
+                spaceAfter=6
+            )
+        )
+        elements.append(Spacer(1, 0.05 * inch))
+
+        glosario = [
+            ("IPM", "Índice de Pobreza Multidimensional"),
+            ("NBI", "Necesidades Básicas Insatisfechas"),
+            ("IRCA", "Índice de Riesgo de la Calidad del Agua"),
+            ("IICA", "Índice de Incidencia del Conflicto Armado"),
+            ("MDM", "Medición del Desempeño Municipal"),
+            ("DANE", "Departamento Administrativo Nacional de Estadística"),
+            ("DNP", "Departamento Nacional de Planeación"),
+            ("RUNAP", "Registro Único Nacional de Áreas Protegidas"),
+            ("REAA", "Registro de Ecosistemas y Áreas Ambientales"),
+            ("ANT", "Agencia Nacional de Tierras")
+        ]
+
+        for sigla, definicion in glosario:
+            texto = f"<b>{sigla}:</b> {definicion}"
+            elements.append(Paragraph(texto, self.styles["ListText"], bulletText='•'))
+            elements.append(Spacer(1, 0.05 * inch))
+        
+        
         
         # Build PDF with custom header and footer on each page
         doc.build(elements, onFirstPage=self._header_footer, onLaterPages=self._header_footer)
