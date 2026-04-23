@@ -292,34 +292,32 @@ class PdfGenerator:
         # ==================== PAGE 1 ====================
         
         # Main title
-        
-        title_autor = """<font size=14><b>Autor: Subdirección de Descentralización</b></font>"""
-        subtitle_autor = """<font size=12>Subdirección de Descentralización y Fortalecimiento Fiscal</font>"""
 
-        elements.append(Paragraph(title_autor, self.styles["MainTitle"]))
-        elements.append(Paragraph(subtitle_autor, self.styles["MainTitle"]))
-        
-        
         title_text = """<font size=14><b>Tipologías de las Entidades Territoriales para el Reconocimiento de Capacidades.</b></font>"""
         title_text2 = """<font size=14><b>Resultados Vigencia 2026</b></font>"""
-        
-        
-        title = Paragraph(title_text, self.styles["MainTitle"])
-        elements.append(title)
-        title = Paragraph(title_text2, self.styles["MainTitle"])
-        elements.append(title)
+
+        elements.append(Paragraph(title_text, self.styles["MainTitle"]))
+        elements.append(Paragraph(title_text2, self.styles["MainTitle"]))
+
         elements.append(Spacer(1, 0.1 * inch))
-        
-        
+
+        # Autor (más pequeño y con texto corregido)
+        title_autor = """<font size=12><b>Autor: Subdirección de Descentralización - Dirección de Descentralización y Fortalecimiento Fiscal</b></font>"""
+        elements.append(Paragraph(title_autor, self.styles["MainTitle"]))
+
+        elements.append(Spacer(1, 0.15 * inch))
+
         # Department subtitle
         dept_text = f"""<font size=16><b><font color='#003366'>Departamento: {departmentName}</font></b></font>"""
         dept_title = Paragraph(dept_text, self.styles["DeptTitle"])
         elements.append(dept_title)
+
         elements.append(Spacer(1, 0.15 * inch))
-        
+
         # Map title
         map_title = Paragraph("<b>Mapa de tipologías municipales</b>", self.styles["SubTitle"])
         elements.append(map_title)
+
         elements.append(Spacer(1, 0.1 * inch))
                
         # Map image
