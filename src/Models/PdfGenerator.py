@@ -9,6 +9,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 from reportlab.platypus import HRFlowable
+from reportlab.platypus import KeepTogether
 
 
 import pandas as pd
@@ -315,96 +316,43 @@ class PdfGenerator:
         elements.append(Spacer(1, 0.15 * inch))
 
         # Map title
-        map_title = Paragraph("<b>Mapa de tipologías municipales</b>", self.styles["SubTitle"])
-        elements.append(map_title)
-
-        elements.append(Spacer(1, 0.1 * inch))
+        
                
         # Map image
         map_path, has_names = get_map_info(departmentName)
 
         if map_path:
-            mapa = Image(map_path, width=5*inch, height=6*inch)
-            elements.append(mapa)
-            elements.append(Spacer(1, 0.05 * inch))
-            elements.append(Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"]))
+
+            map_block = []
+
+            
+            map_block.append(Paragraph("<b>Mapa de tipologías municipales</b>", self.styles["SubTitle"]))
+            map_block.append(Spacer(1, 0.05 * inch))
+
+            
+            if len(departmentName) > 30:
+                mapa = Image(map_path, width=5*inch, height=5.2*inch)
+            else:
+                mapa = Image(map_path, width=5*inch, height=6*inch)
+
+            
+            map_with_source = Table([
+                [mapa],
+                [Paragraph("Fuente: Elaboración propia con base en información del DNP", self.styles["SourceText"])]
+            ], colWidths=[5*inch])
+
+            map_with_source.setStyle(TableStyle([
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('BOTTOMPADDING', (0,0), (-1,0), 0),
+                ('TOPPADDING', (0,1), (-1,1), 0),
+            ]))
+
+            map_block.append(map_with_source)
+
+            
+            elements.append(KeepTogether(map_block))
+
             elements.append(PageBreak())
-
-            if not has_names:
-                # Map title
-                map_title = Paragraph("<b>Listado de Municipios</b>", self.styles["SubTitle"])
-                elements.append(map_title)
-
-                data = data.copy()
-                data["Cod_Municipio"] = data["CodDANE_txt"].astype(str).str[-3:]
-
-                data = data.sort_values("Municipio").reset_index(drop=True)
-
-                table_data = [["Cod", "Municipio", "Cod", "Municipio", "Cod", "Municipio"]]
-
-                total = len(data)
-
-                block_size = total // 3 + (1 if total % 3 > 0 else 0)
-
-                left_data = data.iloc[:block_size]
-                middle_data = data.iloc[block_size:block_size*2].reset_index(drop=True)
-                right_data = data.iloc[block_size*2:].reset_index(drop=True)
-
-                # Build table rows
-                for i in range(block_size):
-
-                    # LEFT
-                    if i < len(left_data):
-                        left_cod = left_data.iloc[i]["Cod_Municipio"]
-                        left_mun = left_data.iloc[i]["Municipio"]
-                    else:
-                        left_cod, left_mun = "", ""
-
-                    # MIDDLE
-                    if i < len(middle_data):
-                        mid_cod = middle_data.iloc[i]["Cod_Municipio"]
-                        mid_mun = middle_data.iloc[i]["Municipio"]
-                    else:
-                        mid_cod, mid_mun = "", ""
-
-                    # RIGHT
-                    if i < len(right_data):
-                        right_cod = right_data.iloc[i]["Cod_Municipio"]
-                        right_mun = right_data.iloc[i]["Municipio"]
-                    else:
-                        right_cod, right_mun = "", ""
-
-                    table_data.append([
-                        left_cod, left_mun,
-                        mid_cod, mid_mun,
-                        right_cod, right_mun
-                    ])
-               
-                # Create Table
-                cod_table = Table(
-                    table_data,
-                    colWidths=[1.5*cm, 3.5*cm,
-                            1.5*cm, 3.5*cm,
-                            1.5*cm, 3.5*cm],
-                    repeatRows=1
-                )
-
-                cod_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BLUE),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
-                    ('TOPPADDING', (0,0), (-1,-1), 2),
-                    ('BOTTOMPADDING', (0,0), (-1,-1), 2),
-                    ('LEFTPADDING', (0,0), (-1,-1), 3),
-                    ('RIGHTPADDING', (0,0), (-1,-1), 3)
-                ]))
-
-                elements.append(cod_table)
-                elements.append(PageBreak())
-                
-                
         else:
             elements.append(Paragraph("<i>Mapa no disponible</i>", self.styles["NormalText"]))
         
